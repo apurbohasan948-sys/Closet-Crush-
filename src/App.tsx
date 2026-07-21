@@ -13,6 +13,7 @@ import FacebookLiveChat from './components/FacebookLiveChat.js';
 import AdminLogin from './components/AdminLogin.js';
 import SimulatedInbox, { SimulatedEmail } from './components/SimulatedInbox.js';
 import { Product, Order, OrderStatus } from './types.js';
+import { DEFAULT_PRODUCTS, DEFAULT_ORDERS } from './data/initialProducts.js';
 import { Mail, ArrowRight, Bell, X } from 'lucide-react';
 
 export default function App() {
@@ -37,8 +38,8 @@ export default function App() {
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
     return sessionStorage.getItem('isAdminAuthenticated') === 'true';
   });
-  const [products, setProducts] = useState<Product[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [products, setProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
+  const [orders, setOrders] = useState<Order[]>(DEFAULT_ORDERS);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -93,20 +94,28 @@ export default function App() {
   const fetchProducts = async () => {
     try {
       const res = await fetch('/api/products');
-      const data = await res.json();
-      setProducts(data);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setProducts(data);
+        }
+      }
     } catch (err) {
-      console.error('Failed to fetch products:', err);
+      console.warn('Backend API not reachable (e.g. running static on GitHub Pages). Using local products state.', err);
     }
   };
 
   const fetchOrders = async () => {
     try {
       const res = await fetch('/api/orders');
-      const data = await res.json();
-      setOrders(data);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setOrders(data);
+        }
+      }
     } catch (err) {
-      console.error('Failed to fetch orders:', err);
+      console.warn('Backend API not reachable (e.g. running static on GitHub Pages). Using local orders state.', err);
     }
   };
 
@@ -114,29 +123,39 @@ export default function App() {
     fetchProducts();
     fetchOrders();
 
-    // 2. Establish Real-time SSE synchronization
-    const eventSource = new EventSource('/api/events');
-    
-    eventSource.addEventListener('products_updated', (event: any) => {
-      try {
-        const updatedProducts = JSON.parse(event.data);
-        setProducts(updatedProducts);
-      } catch (err) {
-        console.error('Failed to parse real-time products update:', err);
-      }
-    });
+    // 2. Establish Real-time SSE synchronization if supported
+    let eventSource: EventSource | null = null;
+    try {
+      eventSource = new EventSource('/api/events');
+      
+      eventSource.addEventListener('products_updated', (event: any) => {
+        try {
+          const updatedProducts = JSON.parse(event.data);
+          setProducts(updatedProducts);
+        } catch (err) {
+          console.error('Failed to parse real-time products update:', err);
+        }
+      });
 
-    eventSource.addEventListener('orders_updated', (event: any) => {
-      try {
-        const updatedOrders = JSON.parse(event.data);
-        setOrders(updatedOrders);
-      } catch (err) {
-        console.error('Failed to parse real-time orders update:', err);
-      }
-    });
+      eventSource.addEventListener('orders_updated', (event: any) => {
+        try {
+          const updatedOrders = JSON.parse(event.data);
+          setOrders(updatedOrders);
+        } catch (err) {
+          console.error('Failed to parse real-time orders update:', err);
+        }
+      });
+
+      eventSource.onerror = () => {
+        // Quietly close on static hosts where SSE endpoint doesn't exist
+        eventSource?.close();
+      };
+    } catch (e) {
+      console.warn('SSE not available on this environment');
+    }
 
     return () => {
-      eventSource.close();
+      eventSource?.close();
     };
   }, []);
 
