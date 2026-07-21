@@ -1,0 +1,6 @@
+{
+  "name": "Closet Crush",
+  "description": "E-commerce marketplace with real-time Telegram bot controls, Facebook page order capture, and secure checkout simulation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
