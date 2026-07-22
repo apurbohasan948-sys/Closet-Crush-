@@ -100,7 +100,7 @@ export default function Cart({
                     </h4>
                     <p className="text-xs text-stone-400 font-mono mt-0.5">{item.product.category}</p>
                     <p className="font-display font-semibold text-stone-800 text-sm mt-1">
-                      ${item.product.price.toFixed(2)} each
+                      ৳{item.product.price.toLocaleString()} each
                     </p>
 
                     {/* Quantity controls */}
@@ -149,15 +149,15 @@ export default function Cart({
               <div className="space-y-2 mb-6">
                 <div className="flex justify-between text-stone-500 text-sm">
                   <span>Subtotal (পণ্যমূল্য)</span>
-                  <span className="font-semibold font-mono">${subtotal.toFixed(2)} (৳{(subtotal * 120).toLocaleString()})</span>
+                  <span className="font-semibold font-mono">৳{subtotal.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-stone-500 text-sm">
                   <span>Delivery Charge (অগ্রিম চার্জ)</span>
-                  <span className="font-semibold text-amber-600 font-mono">+$1.00 (৳120 BDT)</span>
+                  <span className="font-semibold text-amber-600 font-mono">+৳১২০</span>
                 </div>
                 <div className="flex justify-between text-stone-900 font-display font-extrabold text-base pt-2 border-t border-stone-200">
                   <span>Total Order Value</span>
-                  <span>${(subtotal + 1.00).toFixed(2)} <span className="text-stone-500 text-xs font-normal font-mono">(৳{((subtotal + 1.00) * 120).toLocaleString()})</span></span>
+                  <span>৳{(subtotal + 120).toLocaleString()}</span>
                 </div>
                 <p className="text-[10px] text-stone-500 bg-amber-500/5 border border-amber-500/10 p-2 rounded-lg leading-relaxed mt-1">
                   💡 <b>নোট:</b> ডেলিভারি চার্জ <b>৳১২০</b> অগ্রিম পরিশোধ করে অর্ডার চূড়ান্ত করতে হবে। বাকি মূল্য পণ্য হাতে পেয়ে ক্যাশ অন ডেলিভারি (COD) পরিশোধ করুন।

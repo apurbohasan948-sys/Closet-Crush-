@@ -300,23 +300,29 @@ app.get('/api/products', (req, res) => {
 });
 
 app.post('/api/products', (req, res) => {
-  const { name, price, description, image, stock, category } = req.body;
+  const { name, price, description, image, images, stock, category } = req.body;
   if (!name || typeof price !== 'number' || !category) {
     return res.status(400).json({ error: 'Missing or invalid fields.' });
   }
+  const imgList: string[] = Array.isArray(images) && images.length > 0
+    ? images
+    : (image ? [image] : ['https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=600']);
+
   const newProduct: Product = {
     id: 'prod_' + Math.random().toString(36).substr(2, 9),
     name,
     price,
     description: description || '',
-    image: image || 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=600',
+    image: imgList[0],
+    images: imgList,
     stock: typeof stock === 'number' ? stock : 5,
-    category
+    category,
+    reviews: []
   };
   products.push(newProduct);
   saveProductToFirestore(newProduct);
   broadcast('products_updated', products);
-  res.status(211).json(newProduct);
+  res.status(201).json(newProduct);
 });
 
 app.put('/api/products/:id', (req, res) => {

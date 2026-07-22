@@ -16,8 +16,10 @@ import { motion, AnimatePresence } from 'motion/react';
 interface DashboardProps {
   products: Product[];
   orders: Order[];
+  categories: string[];
   onUpdateProductStock: (id: string, newStock: number) => void;
   onAddProduct: (productData: any) => void;
+  onAddCategory: (categoryName: string) => void;
   onUpdateOrderStatus: (id: string, status: OrderStatus) => void;
   onLogout?: () => void;
 }
@@ -25,12 +27,18 @@ interface DashboardProps {
 export default function Dashboard({
   products,
   orders,
+  categories,
   onUpdateProductStock,
   onAddProduct,
+  onAddCategory,
   onUpdateOrderStatus,
   onLogout
 }: DashboardProps) {
   const [activeSubTab, setActiveSubTab] = useState<'inventory' | 'orders' | 'telegram' | 'facebook' | 'campaign'>('orders');
+  
+  // Category state
+  const [newCatName, setNewCatName] = useState('');
+  const [catSuccessMsg, setCatSuccessMsg] = useState('');
   
   // Inventory state
   const [showAddForm, setShowAddForm] = useState(false);
@@ -38,6 +46,7 @@ export default function Dashboard({
   const [newProdPrice, setNewProdPrice] = useState('');
   const [newProdDesc, setNewProdDesc] = useState('');
   const [newProdImage, setNewProdImage] = useState('');
+  const [newProdImagesText, setNewProdImagesText] = useState('');
   const [newProdStock, setNewProdStock] = useState('5');
   const [newProdCategory, setNewProdCategory] = useState('Ceramics');
 
@@ -271,19 +280,31 @@ export default function Dashboard({
   const handleAddProductSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProdName || !newProdPrice) return;
+
+    const extraUrls = newProdImagesText
+      .split('\n')
+      .map(s => s.trim())
+      .filter(s => s.length > 5);
+
+    const allImages = Array.from(new Set([newProdImage.trim(), ...extraUrls].filter(Boolean)));
+    const primaryImg = allImages[0] || 'https://images.unsplash.com/photo-1612196808214-b8e1d6145a8c?w=600&auto=format&fit=crop&q=80';
+
     onAddProduct({
       name: newProdName,
       price: parseFloat(newProdPrice),
       description: newProdDesc,
-      image: newProdImage || undefined,
-      stock: parseInt(newProdStock),
+      image: primaryImg,
+      images: allImages.length > 0 ? allImages : [primaryImg],
+      stock: parseInt(newProdStock) || 5,
       category: newProdCategory
     });
+
     // Reset Form
     setNewProdName('');
     setNewProdPrice('');
     setNewProdDesc('');
     setNewProdImage('');
+    setNewProdImagesText('');
     setNewProdStock('5');
     setShowAddForm(false);
   };
@@ -522,7 +543,7 @@ export default function Dashboard({
                             </div>
                           </td>
                           <td className="py-4 px-4 text-right font-display font-extrabold text-stone-900">
-                            ${o.total.toFixed(2)}
+                            ৳{o.total.toLocaleString()}
                           </td>
                           <td className="py-4 px-4">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
@@ -597,6 +618,67 @@ export default function Dashboard({
                 </button>
               </div>
 
+              {/* Category Management Block */}
+              <div className="bg-stone-50 border border-stone-200/90 rounded-2xl p-5 space-y-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Layers className="w-5 h-5 text-amber-600" />
+                    <div>
+                      <h3 className="font-display font-bold text-stone-900 text-sm">ক্যাটাগরি তৈরি ও ব্যবস্থাপনা (Manage Categories)</h3>
+                      <p className="text-stone-500 text-xs">নতুন ক্যাটাগরি তৈরি করুন যা স্টোরফ্রন্ট ফিল্টারে ও প্রডাক্ট ফরমে লাইভ প্রদর্শিত হবে</p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-mono text-stone-500 bg-stone-200/70 px-2.5 py-1 rounded-full font-bold">
+                    {categories.filter(c => c !== 'All').length} Categories
+                  </span>
+                </div>
+
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!newCatName.trim()) return;
+                  onAddCategory(newCatName.trim());
+                  setCatSuccessMsg(`'${newCatName.trim()}' ক্যাটাগরি সফলভাবে যোগ করা হয়েছে!`);
+                  setNewCatName('');
+                  setTimeout(() => setCatSuccessMsg(''), 4000);
+                }} className="flex items-center space-x-2">
+                  <input
+                    id="add-category-input"
+                    type="text"
+                    required
+                    placeholder="নতুন ক্যাটাগরির নাম লিখুন (যেমন: শাড়ি, পাঞ্জাবি, গহনা)..."
+                    value={newCatName}
+                    onChange={(e) => setNewCatName(e.target.value)}
+                    className="flex-1 bg-white border border-stone-200 rounded-xl px-3.5 py-2 text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                  />
+                  <button
+                    id="submit-category-btn"
+                    type="submit"
+                    className="bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold px-4 py-2 rounded-xl text-xs flex items-center space-x-1 transition-all shadow-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>ক্যাটাগরি যোগ করুন</span>
+                  </button>
+                </form>
+
+                {catSuccessMsg && (
+                  <p className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-1.5">
+                    ✅ {catSuccessMsg}
+                  </p>
+                )}
+
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {categories.filter(c => c !== 'All').map(cat => {
+                    const count = products.filter(p => p.category === cat).length;
+                    return (
+                      <span key={cat} className="inline-flex items-center space-x-1.5 bg-white border border-stone-200 px-3 py-1.5 rounded-xl text-xs font-medium text-stone-800 shadow-sm">
+                        <span>{cat}</span>
+                        <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded-full font-mono">{count} items</span>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Add Product Form */}
               <AnimatePresence>
                 {showAddForm && (
@@ -624,32 +706,29 @@ export default function Dashboard({
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-stone-600 mb-1">Category</label>
+                        <label className="block text-xs font-semibold text-stone-600 mb-1">Category (ক্যাটাগরি)</label>
                         <select
                           id="add-prod-category"
                           value={newProdCategory}
                           onChange={(e) => setNewProdCategory(e.target.value)}
-                          className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                          className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/40 font-medium text-stone-800"
                         >
-                          <option value="Ceramics">Ceramics</option>
-                          <option value="Textiles">Textiles</option>
-                          <option value="Home Fragrance">Home Fragrance</option>
-                          <option value="Stationery">Stationery</option>
-                          <option value="Wooden Ware">Wooden Ware</option>
-                          <option value="Decor">Decor</option>
+                          {categories.filter(c => c !== 'All').map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
                         </select>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-xs font-semibold text-stone-600 mb-1">Price ($ USD)</label>
+                        <label className="block text-xs font-semibold text-stone-600 mb-1">Price (৳ BDT)</label>
                         <input
                           id="add-prod-price"
                           type="number"
-                          step="0.01"
+                          step="1"
                           required
-                          placeholder="45.00"
+                          placeholder="1200"
                           value={newProdPrice}
                           onChange={(e) => setNewProdPrice(e.target.value)}
                           className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/40"
@@ -668,16 +747,33 @@ export default function Dashboard({
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-stone-600 mb-1">Unsplash Photo URL</label>
+                        <label className="block text-xs font-semibold text-stone-600 mb-1">Main Image URL (মূল ছবি)</label>
                         <input
                           id="add-prod-image"
                           type="text"
-                          placeholder="Optional. Leaves blank for default image"
+                          placeholder="https://images.unsplash.com/..."
                           value={newProdImage}
                           onChange={(e) => setNewProdImage(e.target.value)}
                           className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/40"
                         />
                       </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-600 mb-1">
+                        Additional Images (অতিরিক্ত ছবি URL - প্রতি লাইনে একটি করে লিংক দিন)
+                      </label>
+                      <textarea
+                        id="add-prod-extra-images"
+                        rows={2}
+                        placeholder="https://images.unsplash.com/photo-1&#10;https://images.unsplash.com/photo-2"
+                        value={newProdImagesText}
+                        onChange={(e) => setNewProdImagesText(e.target.value)}
+                        className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/40 font-mono"
+                      />
+                      <p className="text-[10px] text-stone-400 mt-1">
+                        💡 একই প্রডাক্টের একাধিক ইমেজ আলাদাভাবে শো করতে প্রতিটি ইমেজ URL নতুন লাইনে লিখুন।
+                      </p>
                     </div>
 
                     <div>
@@ -724,7 +820,7 @@ export default function Dashboard({
                     />
                     <div className="flex-1 min-w-0">
                       <h4 className="font-display font-bold text-sm text-stone-900 truncate">{p.name}</h4>
-                      <p className="text-[10px] text-stone-400 font-mono tracking-wide uppercase mt-0.5">{p.category} | ${p.price.toFixed(2)}</p>
+                      <p className="text-[10px] text-stone-400 font-mono tracking-wide uppercase mt-0.5">{p.category} | ৳{p.price.toLocaleString()}</p>
                       <p className="text-stone-500 text-xs line-clamp-1 mt-1 max-w-xl">{p.description}</p>
                     </div>
 

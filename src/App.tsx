@@ -38,11 +38,68 @@ export default function App() {
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
     return sessionStorage.getItem('isAdminAuthenticated') === 'true';
   });
-  const [products, setProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
-  const [orders, setOrders] = useState<Order[]>(DEFAULT_ORDERS);
+
+  const [products, setProducts] = useState<Product[]>(() => {
+    try {
+      const saved = localStorage.getItem('bd_app_products');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.warn('Failed to load products from localStorage', e);
+    }
+    return DEFAULT_PRODUCTS;
+  });
+
+  const [categories, setCategories] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('bd_app_categories');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.warn('Failed to load categories from localStorage', e);
+    }
+    return ['All', 'Ceramics', 'Textiles', 'Home Fragrance', 'Stationery', 'Wooden Ware', 'Decor'];
+  });
+
+  const [orders, setOrders] = useState<Order[]>(() => {
+    try {
+      const saved = localStorage.getItem('bd_app_orders');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.warn('Failed to load orders from localStorage', e);
+    }
+    return DEFAULT_ORDERS;
+  });
+
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+
+  // Sync state to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('bd_app_products', JSON.stringify(products));
+    } catch (e) {}
+  }, [products]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('bd_app_categories', JSON.stringify(categories));
+    } catch (e) {}
+  }, [categories]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('bd_app_orders', JSON.stringify(orders));
+    } catch (e) {}
+  }, [orders]);
   
   // Simulated Email Client States
   const [isEmailClientOpen, setIsEmailClientOpen] = useState(false);
@@ -328,6 +385,67 @@ export default function App() {
     `;
   };
 
+  const generateAdminOrderEmailHtml = (order: Order) => {
+    const itemRows = order.items.map(item => `
+      <tr style="border-bottom: 1px solid #e7e5e4;">
+        <td style="padding: 10px 0; font-size: 13px;">
+          <div style="font-weight: 700; color: #1c1917;">${item.productName}</div>
+          <div style="font-size: 11px; color: #78716c; font-family: monospace;">Item ID: ${item.productId}</div>
+        </td>
+        <td style="padding: 10px 0; text-align: center; font-size: 13px; font-weight: 700; color: #1c1917;">${item.quantity}</td>
+        <td style="padding: 10px 0; text-align: right; font-size: 13px; font-family: monospace; font-weight: 700; color: #1c1917;">৳${item.price.toLocaleString()}</td>
+        <td style="padding: 10px 0; text-align: right; font-size: 13px; font-family: monospace; font-weight: 800; color: #059669;">৳${(item.price * item.quantity).toLocaleString()}</td>
+      </tr>
+    `).join('');
+
+    return `
+      <div style="font-family: 'Inter', sans-serif; max-width: 620px; margin: 0 auto; background-color: #fcfbf9; border: 1px solid #e7e5e4; border-radius: 12px; overflow: hidden; color: #44403c;">
+        <div style="background-color: #111827; padding: 24px; text-align: center;">
+          <span style="background-color: #f59e0b; color: #111827; font-size: 10px; font-weight: 900; padding: 4px 10px; border-radius: 12px; text-transform: uppercase; font-family: monospace; letter-spacing: 0.1em;">ADMIN NEW ORDER NOTIFICATION</span>
+          <h1 style="color: #ffffff; font-size: 22px; font-weight: 800; margin: 10px 0 0 0;">New Order #${order.id}</h1>
+          <p style="color: #9ca3af; font-size: 12px; margin: 4px 0 0 0;">Recipient: ramimhasan920@gmail.com</p>
+        </div>
+
+        <div style="padding: 24px; line-height: 1.5;">
+          <div style="background-color: #f3f4f6; border-left: 4px solid #f59e0b; border-radius: 6px; padding: 14px; margin-bottom: 20px;">
+            <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #111827;">👤 Customer Information (গ্রাহক ও ঠিকানা)</h3>
+            <p style="margin: 2px 0; font-size: 13px;"><strong>Name:</strong> ${order.customerName}</p>
+            <p style="margin: 2px 0; font-size: 13px;"><strong>Customer Email:</strong> ${order.customerEmail || 'N/A'}</p>
+            <p style="margin: 2px 0; font-size: 13px;"><strong>Shipping Address:</strong> ${order.shippingAddress}</p>
+            <p style="margin: 2px 0; font-size: 13px;"><strong>Order Source:</strong> ${order.source}</p>
+            <p style="margin: 2px 0; font-size: 13px;"><strong>Order Time:</strong> ${new Date(order.createdAt).toLocaleString()}</p>
+          </div>
+
+          <div style="background-color: #ecfdf5; border-left: 4px solid #10b981; border-radius: 6px; padding: 14px; margin-bottom: 20px;">
+            <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #065f46;">💳 Payment Details (পেমেন্ট তথ্য)</h3>
+            <p style="margin: 2px 0; font-size: 13px;"><strong>Method:</strong> ${order.paymentDetails?.cardBrand || 'Mobile Banking'}</p>
+            <p style="margin: 2px 0; font-size: 13px;"><strong>TrxID / Reference:</strong> <span style="font-family: monospace; font-weight: bold; color: #047857;">${order.paymentDetails?.transactionId || 'N/A'}</span></p>
+            <p style="margin: 2px 0; font-size: 13px;"><strong>Total Value:</strong> <strong style="font-size: 16px; color: #047857;">৳${order.total.toLocaleString()}</strong></p>
+          </div>
+
+          <h3 style="font-size: 12px; text-transform: uppercase; color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 6px; margin-bottom: 12px; font-family: monospace;">Ordered Items</h3>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+              <tr style="border-bottom: 2px solid #e5e7eb; text-align: left; font-size: 11px; text-transform: uppercase; color: #6b7280;">
+                <th style="padding-bottom: 6px;">Product</th>
+                <th style="padding-bottom: 6px; text-align: center;">Qty</th>
+                <th style="padding-bottom: 6px; text-align: right;">Unit Price</th>
+                <th style="padding-bottom: 6px; text-align: right;">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemRows}
+            </tbody>
+          </table>
+
+          <div style="background-color: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 12px; text-align: center; font-size: 12px; color: #92400e; font-weight: 600;">
+            ⚡ Action Needed: Manage order delivery status from the Admin Panel.
+          </div>
+        </div>
+      </div>
+    `;
+  };
+
   // 4. Checkout handlers
   const handleCheckoutSuccess = async (paymentData: {
     customerName: string;
@@ -335,15 +453,32 @@ export default function App() {
     customerEmail: string;
     paymentDetails: { cardBrand: string; last4: string; transactionId: string };
   }) => {
-    try {
-      // Map items for checkout payload
-      const orderItems = cartItems.map(item => ({
-        productId: item.product.id,
-        productName: item.product.name,
-        quantity: item.quantity,
-        price: item.product.price
-      }));
+    // Map items for checkout payload
+    const orderItems = cartItems.map(item => ({
+      productId: item.product.id,
+      productName: item.product.name,
+      quantity: item.quantity,
+      price: item.product.price
+    }));
 
+    const totalAmount = cartItems.reduce((acc, i) => acc + (i.product.price * i.quantity), 0);
+
+    const fallbackOrder: Order = {
+      id: 'ORD-' + Math.floor(1000 + Math.random() * 9000),
+      items: orderItems,
+      total: totalAmount,
+      customerName: paymentData.customerName,
+      shippingAddress: paymentData.shippingAddress,
+      customerEmail: paymentData.customerEmail,
+      status: 'Pending',
+      createdAt: new Date().toISOString(),
+      source: 'Website',
+      paymentDetails: paymentData.paymentDetails
+    };
+
+    let createdOrder: Order = fallbackOrder;
+
+    try {
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -358,45 +493,69 @@ export default function App() {
       });
 
       if (response.ok) {
-        const createdOrder: Order = await response.json();
-        setCartItems([]);
-        setIsCartOpen(false);
-        fetchProducts(); // Refresh stock counts
-        fetchOrders();   // Refresh orders list
-
-        // Deliver simulated receipt email
-        const emailHtml = generateReceiptEmailHtml(createdOrder, paymentData.customerEmail);
-        const newEmail: SimulatedEmail = {
-          id: 'em_' + Math.random().toString(36).substr(2, 9),
-          subject: `Order Confirmed: ${createdOrder.id} - Closet Crush 📦`,
-          recipient: paymentData.customerEmail,
-          sender: 'concierge@closetcrush.store',
-          bodyHtml: emailHtml,
-          sentAt: new Date().toLocaleString(),
-          isRead: false
-        };
-
-        setSentEmails(prev => [newEmail, ...prev]);
-
-        // Push toast notification
-        setActiveEmailToast({
-          subject: newEmail.subject,
-          recipient: newEmail.recipient
-        });
-
-        // Clear toast after 8s
-        setTimeout(() => {
-          setActiveEmailToast(prev => prev?.subject === newEmail.subject ? null : prev);
-        }, 8000);
-
+        createdOrder = await response.json();
       } else {
-        const errData = await response.json();
-        alert(`Checkout authorization error: ${errData.error || 'Server error'}`);
+        // Retain local fallback order
+        setOrders(prev => [createdOrder, ...prev]);
       }
     } catch (err) {
-      console.error('Checkout creation error:', err);
-      alert('Network failure during payment checkout.');
+      console.warn('Backend API not reachable for order save. Retained in local orders state.', err);
+      setOrders(prev => [createdOrder, ...prev]);
     }
+
+    // Deduct stock locally
+    setProducts(prevProds => prevProds.map(prod => {
+      const cartMatch = cartItems.find(ci => ci.product.id === prod.id);
+      if (cartMatch) {
+        return { ...prod, stock: Math.max(0, prod.stock - cartMatch.quantity) };
+      }
+      return prod;
+    }));
+
+    setCartItems([]);
+    setIsCartOpen(false);
+
+    // 1. Deliver customer email
+    const customerEmailHtml = generateReceiptEmailHtml(createdOrder, paymentData.customerEmail);
+    const customerEmailObj: SimulatedEmail = {
+      id: 'em_cust_' + Math.random().toString(36).substr(2, 9),
+      subject: `Order Confirmed: #${createdOrder.id} - Closet Crush 📦`,
+      recipient: paymentData.customerEmail,
+      sender: 'concierge@closetcrush.store',
+      bodyHtml: customerEmailHtml,
+      sentAt: new Date().toLocaleString(),
+      isRead: false
+    };
+
+    // 2. Deliver ADMIN Notification Email to ramimhasan920@gmail.com
+    const adminEmailHtml = generateAdminOrderEmailHtml(createdOrder);
+    const adminEmailObj: SimulatedEmail = {
+      id: 'em_admin_' + Math.random().toString(36).substr(2, 9),
+      subject: `🚨 ADMIN NEW ORDER: #${createdOrder.id} from ${paymentData.customerName} (৳${createdOrder.total.toLocaleString()})`,
+      recipient: 'ramimhasan920@gmail.com',
+      sender: 'orders@closetcrush.store',
+      bodyHtml: adminEmailHtml,
+      sentAt: new Date().toLocaleString(),
+      isRead: false
+    };
+
+    setSentEmails(prev => [adminEmailObj, customerEmailObj, ...prev]);
+
+    // Push toast notification for admin email
+    setActiveEmailToast({
+      subject: adminEmailObj.subject,
+      recipient: 'ramimhasan920@gmail.com'
+    });
+
+    // Clear toast after 8s
+    setTimeout(() => {
+      setActiveEmailToast(prev => prev?.subject === adminEmailObj.subject ? null : prev);
+    }, 8000);
+  };
+
+  const handleAddCategory = (catName: string) => {
+    if (!catName || categories.includes(catName)) return;
+    setCategories(prev => [...prev, catName]);
   };
 
   // 5. Admin handlers
@@ -416,6 +575,26 @@ export default function App() {
   };
 
   const handleAddProduct = async (productData: any) => {
+    // Construct new product object
+    const imgList: string[] = Array.isArray(productData.images) && productData.images.length > 0
+      ? productData.images
+      : (productData.image ? [productData.image] : ['https://images.unsplash.com/photo-1612196808214-b8e1d6145a8c?w=600&auto=format&fit=crop&q=80']);
+
+    const localNewProd: Product = {
+      id: 'prod_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      name: productData.name,
+      price: productData.price,
+      description: productData.description || '',
+      image: imgList[0],
+      images: imgList,
+      stock: productData.stock ?? 5,
+      category: productData.category || 'Ceramics',
+      reviews: []
+    };
+
+    // Add locally first for instant feedback
+    setProducts(prev => [localNewProd, ...prev]);
+
     try {
       const response = await fetch('/api/products', {
         method: 'POST',
@@ -423,10 +602,12 @@ export default function App() {
         body: JSON.stringify(productData)
       });
       if (response.ok) {
-        fetchProducts();
+        const createdOnServer = await response.json();
+        // Replace temp local product with server's confirmed product
+        setProducts(prev => prev.map(p => p.id === localNewProd.id ? createdOnServer : p));
       }
     } catch (err) {
-      console.error('Failed to add product:', err);
+      console.warn('Backend API not reachable for adding product. Retained in local memory state.', err);
     }
   };
 
@@ -504,6 +685,7 @@ export default function App() {
         {activeTab === 'store' ? (
           <Storefront
             products={products}
+            categories={categories}
             addToCart={handleAddToCart}
           />
         ) : !isAdminAuthenticated ? (
@@ -512,8 +694,10 @@ export default function App() {
           <Dashboard
             products={products}
             orders={orders}
+            categories={categories}
             onUpdateProductStock={handleUpdateProductStock}
             onAddProduct={handleAddProduct}
+            onAddCategory={handleAddCategory}
             onUpdateOrderStatus={handleUpdateOrderStatus}
             onLogout={() => {
               sessionStorage.removeItem('isAdminAuthenticated');

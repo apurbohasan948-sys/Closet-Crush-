@@ -4,19 +4,21 @@
  */
 
 import React, { useState } from 'react';
-import { Search, SlidersHorizontal, ShoppingCart, Eye, Sparkles, X, ChevronRight, Star, MessageSquare, CheckCircle, User } from 'lucide-react';
+import { Search, SlidersHorizontal, ShoppingCart, Eye, Sparkles, X, ChevronLeft, ChevronRight, Star, MessageSquare, CheckCircle, User } from 'lucide-react';
 import { Product } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface StorefrontProps {
   products: Product[];
+  categories?: string[];
   addToCart: (product: Product) => void;
 }
 
-export default function Storefront({ products, addToCart }: StorefrontProps) {
+export default function Storefront({ products, categories = [], addToCart }: StorefrontProps) {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   // Review states
   const [reviewUserName, setReviewUserName] = useState('');
@@ -97,7 +99,7 @@ export default function Storefront({ products, addToCart }: StorefrontProps) {
   };
 
   // Categories extraction
-  const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
+  const categoryPills = ['All', ...Array.from(new Set([...categories.filter(c => c !== 'All'), ...products.map(p => p.category)]))];
 
   const filteredProducts = products.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || 
@@ -150,7 +152,7 @@ export default function Storefront({ products, addToCart }: StorefrontProps) {
         {/* Category Pill Filters */}
         <div className="flex items-center overflow-x-auto py-1 scrollbar-hide space-x-2">
           <SlidersHorizontal className="w-4 h-4 text-stone-400 shrink-0 mr-1" />
-          {categories.map(category => (
+          {categoryPills.map(category => (
             <button
               key={category}
               id={`filter-${category.toLowerCase().replace(/\s+/g, '-')}`}
@@ -167,8 +169,8 @@ export default function Storefront({ products, addToCart }: StorefrontProps) {
         </div>
       </div>
 
-      {/* Products Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+      {/* Products Grid - 2 columns on mobile, 2 on tablet, 3 on desktop */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 lg:gap-8">
         <AnimatePresence mode="popLayout">
           {filteredProducts.map(p => {
             const isLowStock = p.stock > 0 && p.stock <= 5;
@@ -182,8 +184,11 @@ export default function Storefront({ products, addToCart }: StorefrontProps) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.3 }}
-                onClick={() => setSelectedProduct(p)}
-                className="group relative flex flex-col bg-stone-50 border border-stone-200/80 rounded-2xl overflow-hidden shadow-sm hover:shadow-md hover:border-amber-500/30 transition-all duration-300 cursor-pointer"
+                onClick={() => {
+                  setSelectedProduct(p);
+                  setActiveImageIndex(0);
+                }}
+                className="group relative flex flex-col bg-stone-50 border border-stone-200/80 rounded-xl sm:rounded-2xl overflow-hidden shadow-sm hover:shadow-md hover:border-amber-500/30 transition-all duration-300 cursor-pointer"
               >
                 {/* Image Section */}
                 <div className="relative aspect-square overflow-hidden bg-stone-100">
@@ -194,31 +199,31 @@ export default function Storefront({ products, addToCart }: StorefrontProps) {
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
                   />
                   {/* Category overlay */}
-                  <span className="absolute top-3 left-3 bg-stone-900/85 backdrop-blur-sm text-amber-400 text-[10px] font-mono tracking-widest uppercase px-2 py-1 rounded">
+                  <span className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-stone-900/85 backdrop-blur-sm text-amber-400 text-[8px] sm:text-[10px] font-mono tracking-widest uppercase px-1.5 py-0.5 sm:px-2 sm:py-1 rounded">
                     {p.category}
                   </span>
                   {/* Stock status overlay */}
-                  <div className="absolute top-3 right-3">
+                  <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
                     {isOutOfStock ? (
-                      <span className="bg-red-500/90 text-white text-[10px] font-bold px-2.5 py-1 rounded shadow-sm">
+                      <span className="bg-red-500/90 text-white text-[8px] sm:text-[10px] font-bold px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded shadow-sm">
                         Sold Out
                       </span>
                     ) : isLowStock ? (
-                      <span className="bg-amber-500/90 text-stone-950 text-[10px] font-bold px-2.5 py-1 rounded shadow-sm animate-pulse">
-                        Only {p.stock} Left
+                      <span className="bg-amber-500/90 text-stone-950 text-[8px] sm:text-[10px] font-bold px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded shadow-sm animate-pulse">
+                        {p.stock} Left
                       </span>
                     ) : (
-                      <span className="bg-stone-800/80 backdrop-blur-sm text-stone-200 text-[10px] px-2 py-1 rounded">
-                        {p.stock} in Stock
+                      <span className="bg-stone-800/80 backdrop-blur-sm text-stone-200 text-[8px] sm:text-[10px] px-1.5 py-0.5 sm:px-2 sm:py-1 rounded">
+                        {p.stock} In Stock
                       </span>
                     )}
                   </div>
                 </div>
 
                 {/* Info Content */}
-                <div className="p-5 flex flex-col flex-1 justify-between">
+                <div className="p-2.5 sm:p-5 flex flex-col flex-1 justify-between">
                   <div>
-                    <h3 className="font-display font-bold text-lg text-stone-900 leading-snug group-hover:text-amber-600 transition-colors">
+                    <h3 className="font-display font-bold text-xs sm:text-lg text-stone-900 leading-tight sm:leading-snug group-hover:text-amber-600 transition-colors line-clamp-2">
                       {p.name}
                     </h3>
                     
@@ -226,51 +231,55 @@ export default function Storefront({ products, addToCart }: StorefrontProps) {
                     {(() => {
                       const summary = getRatingSummary(p);
                       return summary ? (
-                        <div className="flex items-center space-x-1 mt-1.5">
+                        <div className="flex items-center space-x-1 mt-1 sm:mt-1.5">
                           <div className="flex text-amber-500">
-                            <Star className="w-3.5 h-3.5 fill-current" />
+                            <Star className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-current" />
                           </div>
-                          <span className="text-xs font-bold text-stone-700">{summary.avg}</span>
-                          <span className="text-[10px] text-stone-400">({summary.count})</span>
+                          <span className="text-[10px] sm:text-xs font-bold text-stone-700">{summary.avg}</span>
+                          <span className="text-[9px] sm:text-[10px] text-stone-400">({summary.count})</span>
                         </div>
                       ) : (
-                        <div className="flex items-center space-x-1 mt-1.5 text-stone-400 text-[10px]">
-                          <Star className="w-3.5 h-3.5" />
-                          <span>No reviews yet</span>
+                        <div className="flex items-center space-x-1 mt-1 sm:mt-1.5 text-stone-400 text-[9px] sm:text-[10px]">
+                          <Star className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                          <span>No reviews</span>
                         </div>
                       );
                     })()}
 
-                    <p className="text-stone-500 text-xs mt-2 line-clamp-2 leading-relaxed">
+                    <p className="text-stone-500 text-xs mt-2 line-clamp-2 leading-relaxed hidden sm:block">
                       {p.description}
                     </p>
                   </div>
 
-                  <div className="mt-5 pt-4 border-t border-stone-100 flex items-center justify-between">
-                    <span className="text-xl font-display font-bold text-stone-900">
-                      ${p.price.toFixed(2)}
+                  <div className="mt-2 sm:mt-5 pt-2 sm:pt-4 border-t border-stone-100 flex items-center justify-between">
+                    <span className="text-xs sm:text-xl font-display font-bold text-stone-900">
+                      ৳{p.price.toLocaleString()}
                     </span>
-                    <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex space-x-1 sm:space-x-2" onClick={(e) => e.stopPropagation()}>
                       <button
                         id={`view-detail-${p.id}`}
-                        onClick={() => setSelectedProduct(p)}
-                        className="p-2 bg-stone-200/60 hover:bg-stone-300 text-stone-600 rounded-lg transition-colors"
+                        onClick={() => {
+                          setSelectedProduct(p);
+                          setActiveImageIndex(0);
+                        }}
+                        className="p-1.5 sm:p-2 bg-stone-200/60 hover:bg-stone-300 text-stone-600 rounded-lg transition-colors"
                         title="View Details"
                       >
-                        <Eye className="w-4 h-4" />
+                        <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </button>
                       <button
                         id={`add-to-cart-${p.id}`}
                         disabled={isOutOfStock}
                         onClick={() => addToCart(p)}
-                        className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-semibold font-display tracking-wide transition-all ${
+                        className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-semibold font-display tracking-wide transition-all ${
                           isOutOfStock
                             ? 'bg-stone-200 text-stone-400 cursor-not-allowed'
                             : 'bg-stone-900 text-white hover:bg-amber-500 hover:text-stone-950 shadow-sm'
                         }`}
                       >
-                        <ShoppingCart className="w-3.5 h-3.5" />
-                        <span>Add to Cart</span>
+                        <ShoppingCart className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                        <span className="hidden sm:inline">Add to Cart</span>
+                        <span className="inline sm:hidden">+</span>
                       </button>
                     </div>
                   </div>
@@ -324,15 +333,82 @@ export default function Storefront({ products, addToCart }: StorefrontProps) {
               <div className="p-6 md:p-8 space-y-8 max-h-[90vh] overflow-y-auto">
                 {/* 1. Main Product Info Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {/* Image */}
-                  <div className="aspect-square bg-stone-100 rounded-xl overflow-hidden border border-stone-200">
-                    <img
-                      referrerPolicy="no-referrer"
-                      src={latestSelectedProduct.image}
-                      alt={latestSelectedProduct.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
+                  {/* Gallery & Image Section */}
+                  {(() => {
+                    const galleryImages = (latestSelectedProduct.images && latestSelectedProduct.images.length > 0)
+                      ? latestSelectedProduct.images
+                      : [latestSelectedProduct.image];
+                    const activeImg = galleryImages[activeImageIndex] || galleryImages[0] || latestSelectedProduct.image;
+
+                    return (
+                      <div className="flex flex-col space-y-3">
+                        <div className="relative aspect-square bg-stone-100 rounded-xl overflow-hidden border border-stone-200 group">
+                          <img
+                            referrerPolicy="no-referrer"
+                            src={activeImg}
+                            alt={latestSelectedProduct.name}
+                            className="w-full h-full object-cover transition-all duration-300"
+                          />
+                          {galleryImages.length > 1 && (
+                            <>
+                              {/* Navigation Arrows */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveImageIndex(prev => (prev === 0 ? galleryImages.length - 1 : prev - 1));
+                                }}
+                                className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-stone-900/60 text-white hover:bg-stone-900 transition-colors shadow-md"
+                                title="Previous Image"
+                              >
+                                <ChevronLeft className="w-5 h-5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveImageIndex(prev => (prev === galleryImages.length - 1 ? 0 : prev + 1));
+                                }}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-stone-900/60 text-white hover:bg-stone-900 transition-colors shadow-md"
+                                title="Next Image"
+                              >
+                                <ChevronRight className="w-5 h-5" />
+                              </button>
+                              {/* Image Counter Badge */}
+                              <span className="absolute bottom-3 right-3 bg-stone-900/80 backdrop-blur-sm text-amber-400 text-xs px-2.5 py-1 rounded-full font-mono">
+                                {activeImageIndex + 1} / {galleryImages.length}
+                              </span>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Thumbnails list if multiple images exist */}
+                        {galleryImages.length > 1 && (
+                          <div className="flex items-center space-x-2 overflow-x-auto pb-1 pt-1 scrollbar-none">
+                            {galleryImages.map((imgUrl, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => setActiveImageIndex(idx)}
+                                className={`relative aspect-square w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0 ${
+                                  activeImageIndex === idx
+                                    ? 'border-amber-500 ring-2 ring-amber-500/30 scale-105'
+                                    : 'border-stone-200 opacity-60 hover:opacity-100'
+                                }`}
+                              >
+                                <img
+                                  referrerPolicy="no-referrer"
+                                  src={imgUrl}
+                                  alt={`${latestSelectedProduct.name} view ${idx + 1}`}
+                                  className="w-full h-full object-cover"
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Details */}
                   <div className="flex flex-col justify-between">
@@ -365,7 +441,7 @@ export default function Storefront({ products, addToCart }: StorefrontProps) {
                       )}
 
                       <p className="text-3xl font-display font-bold text-stone-800 mt-3">
-                        ${latestSelectedProduct.price.toFixed(2)}
+                        ৳{latestSelectedProduct.price.toLocaleString()}
                       </p>
                       <div className="mt-4">
                         <p className="text-stone-600 text-sm leading-relaxed">

@@ -6,9 +6,10 @@
 import React, { useState } from 'react';
 import { 
   X, CreditCard, ShieldCheck, Landmark, CheckCircle, 
-  ArrowRight, Loader2, Smartphone, Phone, Key, Copy, Check, HelpCircle 
+  ArrowRight, Loader2, Smartphone, Phone, Key, Copy, Check, HelpCircle, MapPin 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { BD_DISTRICTS } from '../data/bdLocations.js';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -40,16 +41,31 @@ export default function CheckoutModal({
 
   // Global Checkout State
   const [customerName, setCustomerName] = useState(initialCustomerName);
-  const [shippingAddress, setShippingAddress] = useState(initialShippingAddress);
+  const [customerPhone, setCustomerPhone] = useState('');
   const [customerEmail, setCustomerEmail] = useState('ramimhasan920@gmail.com');
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'mfs'>('card');
+  const [selectedDistrict, setSelectedDistrict] = useState('Dhaka');
+  const [selectedUpazila, setSelectedUpazila] = useState('Dhanmondi');
+  const [detailedAddress, setDetailedAddress] = useState(initialShippingAddress || '');
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'mfs'>('mfs');
   const [payOption, setPayOption] = useState<'delivery' | 'full'>('delivery'); // delivery: advance delivery charge only, full: full amount advance
+
+  // Upazilas derived from selected District
+  const activeDistrictObj = BD_DISTRICTS.find(d => d.name === selectedDistrict || d.bnName === selectedDistrict) || BD_DISTRICTS[0];
+  const upazilaList = activeDistrictObj ? activeDistrictObj.upazilas : [];
+
+  const handleDistrictChange = (dName: string) => {
+    setSelectedDistrict(dName);
+    const found = BD_DISTRICTS.find(d => d.name === dName || d.bnName === dName);
+    if (found && found.upazilas.length > 0) {
+      setSelectedUpazila(found.upazilas[0]);
+    }
+  };
   
   // Sync pre-fills on open
   React.useEffect(() => {
     if (isOpen) {
       setCustomerName(initialCustomerName);
-      setShippingAddress(initialShippingAddress);
+      if (initialShippingAddress) setDetailedAddress(initialShippingAddress);
     }
   }, [isOpen, initialCustomerName, initialShippingAddress]);
 
@@ -155,18 +171,40 @@ export default function CheckoutModal({
     setExpiry(formatExpiry(e.target.value));
   };
 
+  // Helper to validate common customer fields
+  const validateCustomerFields = () => {
+    if (!customerName.trim()) {
+      setError('অনুগ্রহ করে আপনার নাম প্রদান করুন (Please enter your name).');
+      return false;
+    }
+    if (!customerPhone.trim() || customerPhone.replace(/[^0-9]/g, '').length < 11) {
+      setError('অনুগ্রহ করে সঠিক ১১ ডিজিটের মোবাইল নাম্বার প্রদান করুন (Please enter a valid 11-digit mobile number).');
+      return false;
+    }
+    if (!selectedDistrict || !selectedUpazila || !detailedAddress.trim()) {
+      setError('অনুগ্রহ করে জেলা, উপজেলা এবং বাসার বিস্তারিত ঠিকানা প্রদান করুন (Please complete district, upazila and address).');
+      return false;
+    }
+    if (!customerEmail.trim() || !customerEmail.includes('@')) {
+      setError('অনুগ্রহ করে আপনার সঠিক ইমেইল আইডি প্রদান করুন (Please enter a valid email).');
+      return false;
+    }
+    return true;
+  };
+
+  const getFullAddress = () => {
+    return `${detailedAddress.trim()}, ${selectedUpazila}, ${selectedDistrict}, Bangladesh | Mobile: ${customerPhone.trim()}`;
+  };
+
   // Card checkout submission handler
   const handleCardSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!customerName.trim() || !shippingAddress.trim() || !customerEmail.trim() || !cardNumber || !expiry || !cvv) {
-      setError('Please fill in all checkout fields.');
-      return;
-    }
+    if (!validateCustomerFields()) return;
 
-    if (!customerEmail.includes('@')) {
-      setError('Please enter a valid email address.');
+    if (!cardNumber || !expiry || !cvv) {
+      setError('Please fill in card credentials.');
       return;
     }
 
@@ -195,7 +233,7 @@ export default function CheckoutModal({
             
             onSuccess({
               customerName,
-              shippingAddress,
+              shippingAddress: getFullAddress(),
               customerEmail,
               paymentDetails: {
                 cardBrand,
@@ -216,15 +254,7 @@ export default function CheckoutModal({
     e.preventDefault();
     setError('');
 
-    if (!customerName.trim() || !shippingAddress.trim() || !customerEmail.trim()) {
-      setError('Please provide customer name, email, and shipping address first.');
-      return;
-    }
-
-    if (!customerEmail.includes('@')) {
-      setError('Please enter a valid email address.');
-      return;
-    }
+    if (!validateCustomerFields()) return;
 
     if (mfsMode === 'manual') {
       if (!mfsNumber || mfsNumber.length < 11) {
@@ -249,7 +279,7 @@ export default function CheckoutModal({
           setTimeout(() => {
             onSuccess({
               customerName,
-              shippingAddress,
+              shippingAddress: getFullAddress(),
               customerEmail,
               paymentDetails: {
                 cardBrand: `${mfsOperator} (Manual)`,
@@ -302,7 +332,7 @@ export default function CheckoutModal({
                 
                 onSuccess({
                   customerName,
-                  shippingAddress,
+                  shippingAddress: getFullAddress(),
                   customerEmail,
                   paymentDetails: {
                     cardBrand: mfsOperator,
@@ -399,7 +429,7 @@ export default function CheckoutModal({
                     </div>
                     <div className="text-right">
                       <span className="text-stone-400 text-[10px] font-mono block">Subtotal</span>
-                      <span className="text-stone-800 font-display font-bold text-sm">${total.toFixed(2)} <span className="text-stone-500 text-xs font-normal">(৳{(total * 120).toLocaleString()})</span></span>
+                      <span className="text-stone-800 font-display font-bold text-sm">৳{total.toLocaleString()}</span>
                     </div>
                   </div>
 
@@ -409,7 +439,7 @@ export default function CheckoutModal({
                       <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                       <div className="text-[11px] leading-relaxed">
                         <span className="font-bold block text-amber-900">ডেলিভারি চার্জ অগ্রিম পরিশোধ বাধ্যতামূলক (Advance Delivery Charge Required)</span>
-                        অর্ডারটি চূড়ান্ত করতে ডেলিভারি চার্জ <span className="font-bold text-amber-950">৳১২০ ($১.০০)</span> অগ্রিম পরিশোধ করতে হবে। বাকি মূল্য পণ্য হাতে পেয়ে পরিশোধযোগ্য (Cash on Delivery)!
+                        অর্ডারটি চূড়ান্ত করতে ডেলিভারি চার্জ <span className="font-bold text-amber-950">৳১২০</span> অগ্রিম পরিশোধ করতে হবে। বাকি মূল্য পণ্য হাতে পেয়ে পরিশোধযোগ্য (Cash on Delivery)!
                       </div>
                     </div>
                   </div>
@@ -431,7 +461,7 @@ export default function CheckoutModal({
                         <span className="text-[10px] font-bold text-stone-800 block">১. শুধু ডেলিভারি চার্জ অগ্রিম</span>
                         <div className="mt-auto flex items-baseline justify-between w-full">
                           <span className="text-stone-500 text-[9px]">Pay Now:</span>
-                          <span className="text-stone-900 text-xs font-extrabold font-mono">৳১২০ ($১.০০)</span>
+                          <span className="text-stone-900 text-xs font-extrabold font-mono">৳১২০</span>
                         </div>
                       </button>
 
@@ -448,7 +478,7 @@ export default function CheckoutModal({
                         <span className="text-[10px] font-bold text-stone-800 block">২. সম্পূর্ণ মূল্য একসাথে অগ্রিম</span>
                         <div className="mt-auto flex items-baseline justify-between w-full">
                           <span className="text-stone-500 text-[9px]">Pay Now:</span>
-                          <span className="text-stone-900 text-xs font-extrabold font-mono">৳{((total + 1) * 120).toLocaleString()} (${(total + 1).toFixed(2)})</span>
+                          <span className="text-stone-900 text-xs font-extrabold font-mono">৳{(total + 120).toLocaleString()}</span>
                         </div>
                       </button>
                     </div>
@@ -461,11 +491,11 @@ export default function CheckoutModal({
                     </div>
                     <div className="text-right text-stone-950">
                       <span className="text-sm font-black text-emerald-600 block">
-                        {payOption === 'delivery' ? '৳১২০ ($১.০০)' : `৳${((total + 1) * 120).toLocaleString()} ($${(total + 1).toFixed(2)})`}
+                        {payOption === 'delivery' ? '৳১২০' : `৳${(total + 120).toLocaleString()}`}
                       </span>
                       {payOption === 'delivery' && (
                         <span className="text-[9px] text-stone-400 font-mono block">
-                          Rest: ৳{(total * 120).toLocaleString()} ($${total.toFixed(2)}) on Delivery (COD)
+                          Rest: ৳{total.toLocaleString()} on Delivery (COD)
                         </span>
                       )}
                     </div>
@@ -509,22 +539,103 @@ export default function CheckoutModal({
                 )}
 
                 {/* Shared Contact & Shipping Details */}
-                <div className="space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="bg-stone-100/80 border border-stone-200/90 rounded-xl p-3.5 space-y-3">
+                  <span className="text-[10px] font-bold text-stone-600 uppercase tracking-wider font-mono flex items-center space-x-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-amber-600" />
+                    <span>গ্রাহক ও ডেলিভারি তথ্য (Delivery Information)</span>
+                  </span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <div>
-                      <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wide mb-1">Customer Name</label>
+                      <label className="block text-[10px] font-bold text-stone-600 mb-1">
+                        আপনার নাম (Full Name) <span className="text-rose-500">*</span>
+                      </label>
                       <input
                         id="checkout-name-input"
                         type="text"
                         required
-                        placeholder="Apurbo Hasan"
+                        placeholder="আপনার নাম লিখুন..."
                         value={customerName}
                         onChange={(e) => setCustomerName(e.target.value)}
-                        className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                        className="w-full bg-white border border-stone-200 rounded-lg px-2.5 py-1.5 text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                       />
                     </div>
+
                     <div>
-                      <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wide mb-1">Email (রিসিপ্টের জন্য)</label>
+                      <label className="block text-[10px] font-bold text-stone-600 mb-1">
+                        মোবাইল নাম্বার (Phone Number) <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        id="checkout-phone-input"
+                        type="tel"
+                        required
+                        placeholder="01712345678"
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value)}
+                        className="w-full bg-white border border-stone-200 rounded-lg px-2.5 py-1.5 text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  {/* District & Upazila Selectors */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[10px] font-bold text-stone-600 mb-1">
+                        জেলা নির্বাচন করুন (Select District) <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        id="checkout-district-select"
+                        value={selectedDistrict}
+                        onChange={(e) => handleDistrictChange(e.target.value)}
+                        className="w-full bg-white border border-stone-200 rounded-lg px-2.5 py-1.5 text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                      >
+                        {BD_DISTRICTS.map((d) => (
+                          <option key={d.name} value={d.name}>
+                            {d.bnName} ({d.name}) - {d.division}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-stone-600 mb-1">
+                        উপজেলা/থানা (Select Upazila/Thana) <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        id="checkout-upazila-select"
+                        value={selectedUpazila}
+                        onChange={(e) => setSelectedUpazila(e.target.value)}
+                        className="w-full bg-white border border-stone-200 rounded-lg px-2.5 py-1.5 text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                      >
+                        {upazilaList.map((u) => (
+                          <option key={u} value={u}>
+                            {u}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] font-bold text-stone-600 mb-1">
+                        বিস্তারিত ঠিকানা (House / Road / Village) <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        id="checkout-detailed-address-input"
+                        type="text"
+                        required
+                        placeholder="বাসা নং ১২, রোড নং ৪, সেক্টর ৭..."
+                        value={detailedAddress}
+                        onChange={(e) => setDetailedAddress(e.target.value)}
+                        className="w-full bg-white border border-stone-200 rounded-lg px-2.5 py-1.5 text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-stone-600 mb-1">
+                        ইমেইল (Email)
+                      </label>
                       <input
                         id="checkout-email-input"
                         type="email"
@@ -532,19 +643,7 @@ export default function CheckoutModal({
                         placeholder="ramimhasan920@gmail.com"
                         value={customerEmail}
                         onChange={(e) => setCustomerEmail(e.target.value)}
-                        className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wide mb-1">Shipping Destination</label>
-                      <input
-                        id="checkout-address-input"
-                        type="text"
-                        required
-                        placeholder="House 12, Road 4, Dhanmondi, Dhaka"
-                        value={shippingAddress}
-                        onChange={(e) => setShippingAddress(e.target.value)}
-                        className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                        className="w-full bg-white border border-stone-200 rounded-lg px-2.5 py-1.5 text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                       />
                     </div>
                   </div>
