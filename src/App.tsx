@@ -16,7 +16,9 @@ import OrderTrackingModal from './components/OrderTrackingModal.js';
 import UserAuthModal from './components/UserAuthModal.js';
 import { Product, Order, OrderStatus } from './types.js';
 import { DEFAULT_PRODUCTS, DEFAULT_ORDERS } from './data/initialProducts.js';
-import { Mail, ArrowRight, Bell, X } from 'lucide-react';
+import { Mail, ArrowRight, Bell, X, CloudCheck } from 'lucide-react';
+import { db } from './firebase.js';
+import { collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 export default function App() {
   const [isAdminGatewayUnlocked, setIsAdminGatewayUnlocked] = useState<boolean>(() => {
@@ -132,12 +134,13 @@ export default function App() {
     }
   });
 
-  const handleUpdateMfsNumbers = (bkash: string, nagad: string) => {
+  const handleUpdateMfsNumbers = async (bkash: string, nagad: string) => {
     setBkashNumber(bkash);
     setNagadNumber(nagad);
     try {
       localStorage.setItem('bd_app_bkash', bkash);
       localStorage.setItem('bd_app_nagad', nagad);
+      await setDoc(doc(db, 'store_settings', 'settings'), { bkashNumber: bkash, nagadNumber: nagad }, { merge: true });
     } catch (e) {}
   };
 
@@ -150,10 +153,11 @@ export default function App() {
     }
   });
 
-  const handleUpdateAdminPassword = (newPassword: string) => {
+  const handleUpdateAdminPassword = async (newPassword: string) => {
     setAdminPassword(newPassword);
     try {
       localStorage.setItem('bd_app_admin_password', newPassword);
+      await setDoc(doc(db, 'store_settings', 'settings'), { adminPassword: newPassword }, { merge: true });
     } catch (e) {}
   };
 
@@ -166,11 +170,12 @@ export default function App() {
     }
   });
 
-  const handleUpdateWhatsappNumber = (newNumber: string) => {
+  const handleUpdateWhatsappNumber = async (newNumber: string) => {
     const cleanNumber = newNumber.trim().replace(/[^0-9]/g, '');
     setWhatsappNumber(cleanNumber);
     try {
       localStorage.setItem('bd_app_whatsapp', cleanNumber);
+      await setDoc(doc(db, 'store_settings', 'settings'), { whatsappNumber: cleanNumber }, { merge: true });
     } catch (e) {}
   };
 
@@ -239,72 +244,58 @@ export default function App() {
     onSuccessOverride: (paymentDetails: any) => Promise<void>;
   } | null>(null);
 
-  // 1. Fetch initial products and orders from the server API
-  const fetchProducts = async () => {
-    try {
-      const res = await fetch('/api/products');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          setProducts(data);
-        }
-      }
-    } catch (err) {
-      console.warn('Backend API not reachable (e.g. running static on GitHub Pages). Using local products state.', err);
-    }
-  };
-
-  const fetchOrders = async () => {
-    try {
-      const res = await fetch('/api/orders');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setOrders(data);
-        }
-      }
-    } catch (err) {
-      console.warn('Backend API not reachable (e.g. running static on GitHub Pages). Using local orders state.', err);
-    }
-  };
-
+  // Real-time Cloud Database Sync with Firebase Firestore across devices
   useEffect(() => {
-    fetchProducts();
-    fetchOrders();
+    // 1. Sync Products
+    const unsubProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
+      if (snapshot.empty) {
+        // Seed default products to Firestore if empty
+        DEFAULT_PRODUCTS.forEach((prod) => {
+          setDoc(doc(db, 'products', prod.id), prod).catch(console.error);
+        });
+      } else {
+        const firestoreProds = snapshot.docs.map(d => d.data() as Product);
+        setProducts(firestoreProds);
+      }
+    }, (err) => console.warn('Firestore products sync warning:', err));
 
-    // 2. Establish Real-time SSE synchronization if supported
-    let eventSource: EventSource | null = null;
-    try {
-      eventSource = new EventSource('/api/events');
-      
-      eventSource.addEventListener('products_updated', (event: any) => {
-        try {
-          const updatedProducts = JSON.parse(event.data);
-          setProducts(updatedProducts);
-        } catch (err) {
-          console.error('Failed to parse real-time products update:', err);
-        }
-      });
+    // 2. Sync Orders
+    const unsubOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
+      if (snapshot.empty) {
+        // Seed default orders to Firestore if empty
+        DEFAULT_ORDERS.forEach((ord) => {
+          setDoc(doc(db, 'orders', ord.id), ord).catch(console.error);
+        });
+      } else {
+        const firestoreOrders = snapshot.docs.map(d => d.data() as Order);
+        firestoreOrders.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+        setOrders(firestoreOrders);
+      }
+    }, (err) => console.warn('Firestore orders sync warning:', err));
 
-      eventSource.addEventListener('orders_updated', (event: any) => {
-        try {
-          const updatedOrders = JSON.parse(event.data);
-          setOrders(updatedOrders);
-        } catch (err) {
-          console.error('Failed to parse real-time orders update:', err);
-        }
-      });
-
-      eventSource.onerror = () => {
-        // Quietly close on static hosts where SSE endpoint doesn't exist
-        eventSource?.close();
-      };
-    } catch (e) {
-      console.warn('SSE not available on this environment');
-    }
+    // 3. Sync Store Settings (WhatsApp, bKash, Nagad, Admin Password)
+    const unsubSettings = onSnapshot(doc(db, 'store_settings', 'settings'), (snapshot) => {
+      if (!snapshot.exists()) {
+        const initialSettings = {
+          whatsappNumber: '8801712345678',
+          bkashNumber: '01712-345678',
+          nagadNumber: '01812-345678',
+          adminPassword: 'admin123'
+        };
+        setDoc(doc(db, 'store_settings', 'settings'), initialSettings).catch(console.error);
+      } else {
+        const data = snapshot.data();
+        if (data.whatsappNumber) setWhatsappNumber(data.whatsappNumber);
+        if (data.bkashNumber) setBkashNumber(data.bkashNumber);
+        if (data.nagadNumber) setNagadNumber(data.nagadNumber);
+        if (data.adminPassword) setAdminPassword(data.adminPassword);
+      }
+    }, (err) => console.warn('Firestore settings sync warning:', err));
 
     return () => {
-      eventSource?.close();
+      unsubProducts();
+      unsubOrders();
+      unsubSettings();
     };
   }, []);
 
@@ -576,35 +567,20 @@ export default function App() {
     let createdOrder: Order = fallbackOrder;
 
     try {
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: orderItems,
-          customerName: paymentData.customerName,
-          shippingAddress: paymentData.shippingAddress,
-          customerEmail: paymentData.customerEmail,
-          source: 'Website',
-          paymentDetails: paymentData.paymentDetails
-        })
-      });
-
-      if (response.ok) {
-        createdOrder = await response.json();
-      } else {
-        // Retain local fallback order
-        setOrders(prev => [createdOrder, ...prev]);
-      }
+      // Save order to Firestore
+      await setDoc(doc(db, 'orders', createdOrder.id), createdOrder);
     } catch (err) {
-      console.warn('Backend API not reachable for order save. Retained in local orders state.', err);
+      console.warn('Firestore order save error, keeping local fallback:', err);
       setOrders(prev => [createdOrder, ...prev]);
     }
 
-    // Deduct stock locally
+    // Deduct stock in Firestore & locally
     setProducts(prevProds => prevProds.map(prod => {
       const cartMatch = cartItems.find(ci => ci.product.id === prod.id);
       if (cartMatch) {
-        return { ...prod, stock: Math.max(0, prod.stock - cartMatch.quantity) };
+        const newStock = Math.max(0, prod.stock - cartMatch.quantity);
+        updateDoc(doc(db, 'products', prod.id), { stock: newStock }).catch(console.warn);
+        return { ...prod, stock: newStock };
       }
       return prod;
     }));
@@ -659,16 +635,9 @@ export default function App() {
   const handleUpdateProductStock = async (productId: string, newStock: number) => {
     try {
       setProducts(prev => prev.map(p => p.id === productId ? { ...p, stock: newStock } : p));
-      const response = await fetch(`/api/products/${productId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stock: newStock })
-      });
-      if (response.ok) {
-        fetchProducts();
-      }
+      await updateDoc(doc(db, 'products', productId), { stock: newStock });
     } catch (err) {
-      console.error('Failed to update product stock:', err);
+      console.error('Failed to update product stock in Firestore:', err);
     }
   };
 
@@ -676,13 +645,9 @@ export default function App() {
     const imagesList = newImages && newImages.length > 0 ? newImages : [newImage];
     setProducts(prev => prev.map(p => p.id === productId ? { ...p, image: newImage, images: imagesList } : p));
     try {
-      await fetch(`/api/products/${productId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: newImage, images: imagesList })
-      });
+      await updateDoc(doc(db, 'products', productId), { image: newImage, images: imagesList });
     } catch (err) {
-      console.warn('Updated product image in local memory state.');
+      console.warn('Updated product image in Firestore error:', err);
     }
   };
 
@@ -704,22 +669,12 @@ export default function App() {
       reviews: []
     };
 
-    // Add locally first for instant feedback
-    setProducts(prev => [localNewProd, ...prev]);
-
+    // Add to Firestore
     try {
-      const response = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(productData)
-      });
-      if (response.ok) {
-        const createdOnServer = await response.json();
-        // Replace temp local product with server's confirmed product
-        setProducts(prev => prev.map(p => p.id === localNewProd.id ? createdOnServer : p));
-      }
+      await setDoc(doc(db, 'products', localNewProd.id), localNewProd);
     } catch (err) {
-      console.warn('Backend API not reachable for adding product. Retained in local memory state.', err);
+      console.warn('Firestore add product error, retained locally:', err);
+      setProducts(prev => [localNewProd, ...prev]);
     }
   };
 
@@ -738,19 +693,12 @@ export default function App() {
     }));
 
     try {
-      const response = await fetch(`/api/orders/${orderId}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, trackingNumber, trackingUrl })
-      });
-      if (response.ok) {
-        const updatedOrder = await response.json();
-        if (updatedOrder && updatedOrder.id) {
-          setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
-        }
-      }
+      const updateData: any = { status };
+      if (trackingNumber !== undefined) updateData.trackingNumber = trackingNumber;
+      if (trackingUrl !== undefined) updateData.trackingUrl = trackingUrl;
+      await updateDoc(doc(db, 'orders', orderId), updateData);
     } catch (err) {
-      console.warn('Backend API not reachable for order status. Retained local state.', err);
+      console.warn('Firestore order status update error:', err);
     }
   };
 
@@ -935,27 +883,29 @@ export default function App() {
         />
       )}
 
-      {/* Floating Simulated Email Inbox Trigger Button */}
-      <div className="fixed bottom-6 left-6 z-40">
-        <button
-          id="email-sim-trigger-btn"
-          onClick={() => setIsEmailClientOpen(true)}
-          className="relative group flex items-center space-x-2 bg-stone-900 hover:bg-stone-850 active:scale-95 text-white rounded-full px-4 py-3 shadow-2xl border border-stone-800 transition-all font-sans font-bold text-xs cursor-pointer"
-        >
-          <div className="relative">
-            <Mail className="w-4 h-4 text-amber-500" />
-            {sentEmails.filter(e => !e.isRead).length > 0 && (
-              <span className="absolute -top-2.5 -right-2.5 bg-amber-500 text-stone-950 text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center border border-stone-900 animate-bounce">
-                {sentEmails.filter(e => !e.isRead).length}
-              </span>
-            )}
-          </div>
-          <span className="text-stone-300 group-hover:text-amber-400 transition-colors">ইমেইল সিমুলেটর</span>
-        </button>
-      </div>
+      {/* Floating Simulated Email Inbox Trigger Button (Admin Only) */}
+      {activeTab === 'admin' && (
+        <div className="fixed bottom-6 left-6 z-40">
+          <button
+            id="email-sim-trigger-btn"
+            onClick={() => setIsEmailClientOpen(true)}
+            className="relative group flex items-center space-x-2 bg-stone-900 hover:bg-stone-850 active:scale-95 text-white rounded-full px-4 py-3 shadow-2xl border border-stone-800 transition-all font-sans font-bold text-xs cursor-pointer"
+          >
+            <div className="relative">
+              <Mail className="w-4 h-4 text-amber-500" />
+              {sentEmails.filter(e => !e.isRead).length > 0 && (
+                <span className="absolute -top-2.5 -right-2.5 bg-amber-500 text-stone-950 text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center border border-stone-900 animate-bounce">
+                  {sentEmails.filter(e => !e.isRead).length}
+                </span>
+              )}
+            </div>
+            <span className="text-stone-300 group-hover:text-amber-400 transition-colors">ইমেইল প্যানেল (Admin)</span>
+          </button>
+        </div>
+      )}
 
-      {/* Slide-in Simulated Email Toast Notification */}
-      {activeEmailToast && (
+      {/* Slide-in Simulated Email Toast Notification (Admin Only) */}
+      {activeEmailToast && activeTab === 'admin' && (
         <div
           id="email-sent-toast"
           className="fixed top-20 right-6 z-50 bg-white border border-stone-200 rounded-xl shadow-2xl p-4 max-w-sm flex items-start space-x-3.5 border-l-4 border-l-amber-500 animate-bounce"
@@ -964,7 +914,7 @@ export default function App() {
             <Mail className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <span className="text-[9px] font-bold text-amber-600 uppercase tracking-wider block font-mono">Simulated Email Sent</span>
+            <span className="text-[9px] font-bold text-amber-600 uppercase tracking-wider block font-mono">Admin Email Received</span>
             <h4 className="text-xs font-extrabold text-stone-900 truncate mt-0.5">{activeEmailToast.subject}</h4>
             <p className="text-[10px] text-stone-500 mt-1">Dispatched to: {activeEmailToast.recipient}</p>
             <button
@@ -974,7 +924,7 @@ export default function App() {
               }}
               className="mt-2.5 text-[10px] font-bold text-amber-600 hover:text-amber-700 flex items-center gap-0.5 group focus:outline-none cursor-pointer"
             >
-              Open Sandbox Inbox <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+              Open Admin Inbox <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
             </button>
           </div>
           <button
@@ -986,15 +936,17 @@ export default function App() {
         </div>
       )}
 
-      {/* Simulated Email Client Inbox Modal Overlay */}
-      <SimulatedInbox
-        isOpen={isEmailClientOpen}
-        onClose={() => setIsEmailClientOpen(false)}
-        emails={sentEmails}
-        onMarkAsRead={handleMarkAsRead}
-        onClearAll={handleClearAllEmails}
-        onDeleteEmail={handleDeleteEmail}
-      />
+      {/* Simulated Email Client Inbox Modal Overlay (Admin Only) */}
+      {activeTab === 'admin' && (
+        <SimulatedInbox
+          isOpen={isEmailClientOpen}
+          onClose={() => setIsEmailClientOpen(false)}
+          emails={sentEmails}
+          onMarkAsRead={handleMarkAsRead}
+          onClearAll={handleClearAllEmails}
+          onDeleteEmail={handleDeleteEmail}
+        />
+      )}
 
       {/* User Order Tracking Modal Overlay */}
       <OrderTrackingModal

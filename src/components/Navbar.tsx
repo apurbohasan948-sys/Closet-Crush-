@@ -122,13 +122,13 @@ export default function Navbar({
               </button>
             )}
 
-            {/* Simulated Email Tray Icon */}
-            {onOpenInbox && (
+            {/* Simulated Email Tray Icon (Admin Only) */}
+            {onOpenInbox && activeTab === 'admin' && (
               <button
                 id="nav-inbox-btn"
                 onClick={onOpenInbox}
                 className="relative p-2 rounded-full text-stone-300 hover:text-stone-100 hover:bg-stone-800 transition-all focus:outline-none"
-                title="Email Receipts & Notifications"
+                title="Email Receipts & Notifications (Admin)"
               >
                 <Mail className="w-5 h-5 text-stone-300" />
                 {unreadEmailCount > 0 && (

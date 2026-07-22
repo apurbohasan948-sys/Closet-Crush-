@@ -1,0 +1,45 @@
+{
+  "entities": {
+    "products": {
+      "title": "Products",
+      "description": "Store products catalog",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "originalPrice": { "type": "number" },
+        "category": { "type": "string" },
+        "image": { "type": "string" },
+        "description": { "type": "string" },
+        "stock": { "type": "number" }
+      },
+      "required": ["id", "name", "price"]
+    },
+    "orders": {
+      "title": "Orders",
+      "description": "Customer store orders",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerName": { "type": "string" },
+        "shippingAddress": { "type": "string" },
+        "total": { "type": "number" },
+        "status": { "type": "string" },
+        "orderDate": { "type": "string" }
+      },
+      "required": ["id", "customerName", "total", "status"]
+    },
+    "store_settings": {
+      "title": "Store Settings",
+      "description": "Global store configuration",
+      "type": "object",
+      "properties": {
+        "whatsappNumber": { "type": "string" },
+        "bkashNumber": { "type": "string" },
+        "nagadNumber": { "type": "string" },
+        "adminPassword": { "type": "string" }
+      }
+    }
+  }
+}
