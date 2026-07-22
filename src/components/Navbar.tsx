@@ -45,10 +45,12 @@ export default function Navbar({
               <Flame className="w-5 h-5 text-stone-100" />
             </div>
             <div>
-              <span className="font-display text-xl font-bold tracking-tight bg-gradient-to-r from-amber-400 to-orange-300 bg-clip-text text-transparent">
+              <span className="font-display text-lg sm:text-xl font-bold tracking-tight bg-gradient-to-r from-amber-400 via-orange-300 to-amber-200 bg-clip-text text-transparent">
                 Closet Crush
               </span>
-              <p className="text-[10px] text-stone-400 font-mono tracking-wider -mt-1 uppercase">Curated Fashion</p>
+              <p className="text-[10px] text-amber-400/90 font-medium tracking-wide -mt-0.5">
+                ক্লোসেট ক্রাশ • প্রিমিয়াম ফ্যাশন
+              </p>
             </div>
           </div>
 
@@ -182,6 +184,72 @@ export default function Navbar({
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Mobile Bottom Quick Dock Navigation Bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-stone-900/95 backdrop-blur-md border-t border-stone-800 shadow-2xl px-2 py-1.5 flex items-center justify-around font-sans">
+        <button
+          onClick={() => setActiveTab('store')}
+          className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl text-[10px] font-bold transition-all ${
+            activeTab === 'store' ? 'text-amber-400' : 'text-stone-400 hover:text-stone-200'
+          }`}
+        >
+          <Store className="w-5 h-5 mb-0.5" />
+          <span>শপ catalog</span>
+        </button>
+
+        {onOpenTracking && (
+          <button
+            onClick={onOpenTracking}
+            className="flex flex-col items-center justify-center py-1 px-2 rounded-xl text-[10px] font-bold text-stone-400 hover:text-amber-400 transition-all"
+          >
+            <Truck className="w-5 h-5 mb-0.5 text-amber-400" />
+            <span>ট্র্যাকিং</span>
+          </button>
+        )}
+
+        <a
+          href={`https://wa.me/${whatsappNumber.replace(/[^0-9]/g, '')}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex flex-col items-center justify-center py-1 px-2 rounded-xl text-[10px] font-bold text-emerald-400 hover:text-emerald-300 transition-all"
+        >
+          <MessageCircle className="w-5 h-5 mb-0.5 text-emerald-400" />
+          <span>হোয়াটসঅ্যাপ</span>
+        </a>
+
+        {currentUser?.isLoggedIn ? (
+          <button
+            onClick={onUserLogout}
+            className="flex flex-col items-center justify-center py-1 px-2 rounded-xl text-[10px] font-bold text-stone-300 hover:text-rose-400 transition-all"
+          >
+            <LogOut className="w-5 h-5 mb-0.5 text-rose-400" />
+            <span>লগআউট</span>
+          </button>
+        ) : (
+          <button
+            onClick={onOpenUserAuth}
+            className="flex flex-col items-center justify-center py-1 px-2 rounded-xl text-[10px] font-bold text-stone-400 hover:text-amber-400 transition-all"
+          >
+            <User className="w-5 h-5 mb-0.5 text-amber-400" />
+            <span>একাউন্ট</span>
+          </button>
+        )}
+
+        <button
+          onClick={toggleCart}
+          className="flex flex-col items-center justify-center py-1 px-2 rounded-xl text-[10px] font-bold text-stone-300 relative transition-all"
+        >
+          <div className="relative">
+            <ShoppingBag className="w-5 h-5 mb-0.5 text-amber-400" />
+            {cartCount > 0 && (
+              <span className="absolute -top-1.5 -right-2 bg-amber-500 text-stone-950 font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center">
+                {cartCount}
+              </span>
+            )}
+          </div>
+          <span>কার্ট</span>
+        </button>
       </div>
     </nav>
   );

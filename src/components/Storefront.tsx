@@ -184,7 +184,7 @@ export default function Storefront({ products, categories = [], addToCart }: Sto
   });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 pb-24 md:py-8">
       {/* Hero Banner Slideshow Section */}
       <div className="relative rounded-2xl bg-stone-900 overflow-hidden mb-12 shadow-xl border border-stone-800 min-h-[380px] sm:min-h-[420px] flex items-center group">
         {/* Animated Background Image Slide */}
@@ -277,10 +277,10 @@ export default function Storefront({ products, categories = [], addToCart }: Sto
           <input
             id="product-search-input"
             type="text"
-            placeholder="Search handcrafted products..."
+            placeholder="পছন্দের পোশাক বা পন্য দিয়ে সার্চ করুন (Search)..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-stone-50 border border-stone-200 rounded-lg pl-10 pr-4 py-2 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition-all text-sm"
+            className="w-full bg-stone-50 border border-stone-200 rounded-lg pl-10 pr-4 py-2.5 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition-all text-xs sm:text-sm"
           />
         </div>
 
