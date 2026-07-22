@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { ShoppingBag, LayoutDashboard, Store, Flame, Compass } from 'lucide-react';
+import { ShoppingBag, LayoutDashboard, Store, Flame, Truck, Mail, MessageCircle } from 'lucide-react';
 
 interface NavbarProps {
   activeTab: 'store' | 'admin';
@@ -12,11 +12,25 @@ interface NavbarProps {
   cartCount: number;
   toggleCart: () => void;
   isAdminGatewayUnlocked: boolean;
+  onOpenTracking?: () => void;
+  onOpenInbox?: () => void;
+  unreadEmailCount?: number;
+  whatsappNumber?: string;
 }
 
-export default function Navbar({ activeTab, setActiveTab, cartCount, toggleCart, isAdminGatewayUnlocked }: NavbarProps) {
+export default function Navbar({ 
+  activeTab, 
+  setActiveTab, 
+  cartCount, 
+  toggleCart, 
+  isAdminGatewayUnlocked,
+  onOpenTracking,
+  onOpenInbox,
+  unreadEmailCount = 0,
+  whatsappNumber = '8801712345678'
+}: NavbarProps) {
   return (
-    <nav className="sticky top-0 z-40 bg-stone-900 text-stone-100 shadow-md border-b border-stone-800">
+    <nav className="sticky top-0 z-40 bg-stone-900 text-stone-100 shadow-md border-b border-stone-800 font-sans">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo & Branding */}
@@ -33,11 +47,11 @@ export default function Navbar({ activeTab, setActiveTab, cartCount, toggleCart,
           </div>
 
           {/* Navigation Links */}
-          <div className="hidden md:flex items-center space-x-6">
+          <div className="hidden md:flex items-center space-x-4">
             <button
               id="nav-store-btn"
               onClick={() => setActiveTab('store')}
-              className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`flex items-center space-x-2 px-3 py-2 rounded-md text-xs font-semibold transition-colors ${
                 activeTab === 'store'
                   ? 'bg-stone-800 text-amber-400'
                   : 'text-stone-300 hover:bg-stone-800 hover:text-stone-100'
@@ -46,11 +60,24 @@ export default function Navbar({ activeTab, setActiveTab, cartCount, toggleCart,
               <Store className="w-4 h-4" />
               <span>Browse Catalog</span>
             </button>
+
+            {/* Track Order Button */}
+            {onOpenTracking && (
+              <button
+                id="nav-track-order-btn"
+                onClick={onOpenTracking}
+                className="flex items-center space-x-1.5 px-3 py-2 rounded-md text-xs font-semibold text-stone-300 hover:bg-stone-800 hover:text-amber-400 transition-colors border border-stone-700/60"
+              >
+                <Truck className="w-4 h-4 text-amber-400" />
+                <span>অর্ডার ট্র্যাকিং</span>
+              </button>
+            )}
+
             {isAdminGatewayUnlocked && (
               <button
                 id="nav-admin-btn"
                 onClick={() => setActiveTab('admin')}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-xs font-semibold transition-colors ${
                   activeTab === 'admin'
                     ? 'bg-stone-800 text-amber-400'
                     : 'text-stone-300 hover:bg-stone-800 hover:text-stone-100'
@@ -63,30 +90,58 @@ export default function Navbar({ activeTab, setActiveTab, cartCount, toggleCart,
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center space-x-4">
-            {isAdminGatewayUnlocked && (
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            {/* Direct Admin WhatsApp Link */}
+            <a
+              id="nav-whatsapp-direct-btn"
+              href={`https://wa.me/${whatsappNumber.replace(/[^0-9]/g, '')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden sm:flex items-center space-x-1.5 bg-emerald-600/90 hover:bg-emerald-600 text-white text-xs px-2.5 py-1.5 rounded-full font-bold transition-all shadow-sm"
+              title="Direct Admin WhatsApp"
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              <span>কথা বলুন</span>
+            </a>
+
+            {/* Track Order Mobile Icon */}
+            {onOpenTracking && (
               <button
-                id="mobile-nav-toggle-btn"
-                onClick={() => setActiveTab(activeTab === 'store' ? 'admin' : 'store')}
-                className="md:hidden p-2 rounded-md text-stone-400 hover:text-stone-100 hover:bg-stone-800 transition-colors"
-                title="Toggle View"
+                id="mobile-nav-track-btn"
+                onClick={onOpenTracking}
+                className="md:hidden p-2 rounded-full text-amber-400 hover:bg-stone-800 transition-colors"
+                title="Track Order"
               >
-                {activeTab === 'store' ? (
-                  <LayoutDashboard className="w-5 h-5 text-amber-400" />
-                ) : (
-                  <Store className="w-5 h-5 text-amber-400" />
+                <Truck className="w-5 h-5" />
+              </button>
+            )}
+
+            {/* Simulated Email Tray Icon */}
+            {onOpenInbox && (
+              <button
+                id="nav-inbox-btn"
+                onClick={onOpenInbox}
+                className="relative p-2 rounded-full text-stone-300 hover:text-stone-100 hover:bg-stone-800 transition-all focus:outline-none"
+                title="Email Receipts & Notifications"
+              >
+                <Mail className="w-5 h-5 text-stone-300" />
+                {unreadEmailCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-amber-500 text-stone-900 text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center">
+                    {unreadEmailCount}
+                  </span>
                 )}
               </button>
             )}
 
+            {/* Cart Button */}
             <button
               id="nav-cart-btn"
               onClick={toggleCart}
               className="relative p-2 rounded-full text-stone-300 hover:text-stone-100 hover:bg-stone-800 transition-all focus:outline-none"
             >
-              <ShoppingBag className="w-6 h-6" />
+              <ShoppingBag className="w-5 h-5" />
               {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-amber-500 text-stone-900 text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
+                <span className="absolute -top-1 -right-1 bg-amber-500 text-stone-900 text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center animate-pulse">
                   {cartCount}
                 </span>
               )}

@@ -20,8 +20,10 @@ interface DashboardProps {
   onUpdateProductStock: (id: string, newStock: number) => void;
   onAddProduct: (productData: any) => void;
   onAddCategory: (categoryName: string) => void;
-  onUpdateOrderStatus: (id: string, status: OrderStatus) => void;
+  onUpdateOrderStatus: (id: string, status: OrderStatus, trackingNumber?: string, trackingUrl?: string) => void;
   onLogout?: () => void;
+  whatsappNumber?: string;
+  onUpdateWhatsappNumber?: (newNumber: string) => void;
 }
 
 export default function Dashboard({
@@ -32,9 +34,19 @@ export default function Dashboard({
   onAddProduct,
   onAddCategory,
   onUpdateOrderStatus,
-  onLogout
+  onLogout,
+  whatsappNumber = '8801712345678',
+  onUpdateWhatsappNumber
 }: DashboardProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'inventory' | 'orders' | 'telegram' | 'facebook' | 'campaign'>('orders');
+  const [activeSubTab, setActiveSubTab] = useState<'inventory' | 'orders' | 'telegram' | 'facebook' | 'campaign' | 'settings'>('orders');
+  
+  // WhatsApp Settings state
+  const [inputWhatsapp, setInputWhatsapp] = useState(whatsappNumber);
+  const [waSavedMsg, setWaSavedMsg] = useState('');
+
+  useEffect(() => {
+    setInputWhatsapp(whatsappNumber);
+  }, [whatsappNumber]);
   
   // Category state
   const [newCatName, setNewCatName] = useState('');
@@ -450,6 +462,24 @@ export default function Dashboard({
               </span>
             </div>
           </button>
+
+          <button
+            id="subtab-settings-btn"
+            onClick={() => setActiveSubTab('settings')}
+            className={`w-full text-left flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-semibold font-display transition-all ${
+              activeSubTab === 'settings'
+                ? 'bg-amber-500 text-stone-950 shadow-sm'
+                : 'bg-white hover:bg-stone-200 text-stone-700 border border-stone-200/45'
+            }`}
+          >
+            <Settings className="w-4 h-4 shrink-0 text-emerald-600 group-hover:text-emerald-800" />
+            <div className="flex-1 flex justify-between items-center">
+              <span>WhatsApp & Contact Config</span>
+              <span className="bg-emerald-100 text-emerald-800 text-[9px] px-1.5 py-0.5 rounded font-mono font-bold uppercase">
+                wa.me
+              </span>
+            </div>
+          </button>
         </div>
 
         {/* Content Panel Area */}
@@ -547,43 +577,91 @@ export default function Dashboard({
                           </td>
                           <td className="py-4 px-4">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                              o.status === 'Paid' ? 'bg-emerald-100 text-emerald-800' :
-                              o.status === 'Shipped' ? 'bg-blue-100 text-blue-800' :
-                              o.status === 'Cancelled' ? 'bg-stone-100 text-stone-600' :
-                              'bg-amber-100 text-amber-800'
+                              o.status === 'Paid' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
+                              o.status === 'Processing' ? 'bg-purple-100 text-purple-800 border border-purple-200' :
+                              o.status === 'Shipped' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                              o.status === 'Delivered' ? 'bg-emerald-600 text-white font-bold' :
+                              o.status === 'Cancelled' ? 'bg-stone-100 text-stone-600 border border-stone-200' :
+                              'bg-amber-100 text-amber-800 border border-amber-200'
                             }`}>
                               {o.status}
                             </span>
+
+                            {/* Tracking Info Inline display/editor */}
+                            <div className="mt-2 space-y-1">
+                              {o.trackingNumber ? (
+                                <div className="text-[10px] text-stone-600 bg-stone-100 px-2 py-1 rounded border border-stone-200 font-mono">
+                                  Track: <strong className="text-stone-900">{o.trackingNumber}</strong>
+                                </div>
+                              ) : null}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const trackNo = prompt('কুরিয়ার ট্র্যাকিং নম্বর বা আইডি লিখুন (e.g. STEADFAST-987123):', o.trackingNumber || 'STEADFAST-' + Math.floor(100000 + Math.random() * 900000));
+                                  if (trackNo !== null) {
+                                    const trackUrl = prompt('কুরিয়ার ওয়েবসাইট লাইভ ট্র্যাকিং লিংক (Optional):', o.trackingUrl || `https://steadfast.com.bd/t/${trackNo}`);
+                                    onUpdateOrderStatus(o.id, o.status, trackNo, trackUrl || undefined);
+                                  }
+                                }}
+                                className="text-[9.5px] font-bold text-amber-700 hover:text-amber-900 underline block"
+                              >
+                                {o.trackingNumber ? '✏️ ট্র্যাকিং এডিট' : '+ কুরিয়ার ট্র্যাকিং যোগ করুন'}
+                              </button>
+                            </div>
                           </td>
                           <td className="py-4 px-4 text-right">
-                            <div className="flex justify-end gap-1.5">
-                              {o.status === 'Pending' && (
-                                <button
-                                  id={`order-pay-${o.id}`}
-                                  onClick={() => onUpdateOrderStatus(o.id, 'Paid')}
-                                  className="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded text-xs transition-colors"
-                                >
-                                  Mark Paid
-                                </button>
-                              )}
-                              {o.status === 'Paid' && (
-                                <button
-                                  id={`order-ship-${o.id}`}
-                                  onClick={() => onUpdateOrderStatus(o.id, 'Shipped')}
-                                  className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded text-xs transition-colors"
-                                >
-                                  Ship Goods
-                                </button>
-                              )}
-                              {o.status !== 'Shipped' && o.status !== 'Cancelled' && (
-                                <button
-                                  id={`order-cancel-${o.id}`}
-                                  onClick={() => onUpdateOrderStatus(o.id, 'Cancelled')}
-                                  className="px-2 py-1 hover:bg-stone-100 text-stone-400 hover:text-stone-700 rounded text-xs transition-colors"
-                                >
-                                  Cancel
-                                </button>
-                              )}
+                            <div className="flex flex-col items-end gap-1">
+                              <div className="flex flex-wrap justify-end gap-1">
+                                {o.status !== 'Paid' && o.status !== 'Delivered' && o.status !== 'Cancelled' && (
+                                  <button
+                                    id={`order-pay-${o.id}`}
+                                    onClick={() => onUpdateOrderStatus(o.id, 'Paid', o.trackingNumber, o.trackingUrl)}
+                                    className="px-2 py-0.5 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded text-[10px] transition-colors"
+                                  >
+                                    Mark Paid
+                                  </button>
+                                )}
+                                {o.status === 'Paid' && (
+                                  <button
+                                    id={`order-process-${o.id}`}
+                                    onClick={() => onUpdateOrderStatus(o.id, 'Processing', o.trackingNumber, o.trackingUrl)}
+                                    className="px-2 py-0.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded text-[10px] transition-colors"
+                                  >
+                                    Processing
+                                  </button>
+                                )}
+                                {(o.status === 'Paid' || o.status === 'Processing') && (
+                                  <button
+                                    id={`order-ship-${o.id}`}
+                                    onClick={() => {
+                                      const defaultNo = o.trackingNumber || 'STEADFAST-' + Math.floor(100000 + Math.random() * 900000);
+                                      const defaultUrl = o.trackingUrl || `https://steadfast.com.bd/t/${defaultNo}`;
+                                      onUpdateOrderStatus(o.id, 'Shipped', defaultNo, defaultUrl);
+                                    }}
+                                    className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded text-[10px] transition-colors"
+                                  >
+                                    Ship Order
+                                  </button>
+                                )}
+                                {o.status === 'Shipped' && (
+                                  <button
+                                    id={`order-deliver-${o.id}`}
+                                    onClick={() => onUpdateOrderStatus(o.id, 'Delivered', o.trackingNumber, o.trackingUrl)}
+                                    className="px-2 py-0.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold rounded text-[10px] transition-colors"
+                                  >
+                                    Delivered
+                                  </button>
+                                )}
+                                {o.status !== 'Cancelled' && o.status !== 'Delivered' && (
+                                  <button
+                                    id={`order-cancel-${o.id}`}
+                                    onClick={() => onUpdateOrderStatus(o.id, 'Cancelled', o.trackingNumber, o.trackingUrl)}
+                                    className="px-2 py-0.5 bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-900 rounded text-[10px] transition-colors"
+                                  >
+                                    Cancel
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </td>
                         </tr>
@@ -1673,6 +1751,129 @@ export default function Dashboard({
                     </div>
                   </div>
 
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 6: WHATSAPP & CONTACT SETTINGS */}
+          {activeSubTab === 'settings' && (
+            <div className="space-y-6">
+              <div className="border-b border-stone-100 pb-4">
+                <h2 className="font-display font-extrabold text-xl text-stone-900 flex items-center space-x-2">
+                  <Settings className="w-5 h-5 text-emerald-600" />
+                  <span>WhatsApp ও কন্টাক্ট সেটিং (WhatsApp Configuration)</span>
+                </h2>
+                <p className="text-stone-500 text-xs mt-1">
+                  এখানে দেওয়া নাম্বারের ওপর ভিত্তি করে ওয়েবসাইটের "কথা বলুন" বাটন এবং লাইভ চ্যাটের WhatsApp লিংক কাজ করবে।
+                </p>
+              </div>
+
+              {waSavedMsg && (
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3.5 rounded-xl text-xs font-bold flex items-center space-x-2 animate-fadeIn">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{waSavedMsg}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Form Editor Card */}
+                <div className="bg-stone-50 border border-stone-200 rounded-2xl p-5 space-y-4 shadow-sm">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-sm">
+                      WA
+                    </div>
+                    <div>
+                      <h3 className="font-display font-bold text-sm text-stone-900">WhatsApp এডমিন নম্বর আপডেট</h3>
+                      <p className="text-[11px] text-stone-500">কান্ট্রি কোড সহ বা ছাড়া মোবাইল নম্বর লিখুন</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 pt-2">
+                    <label className="block text-xs font-bold text-stone-700">
+                      WhatsApp মোবাইল নাম্বার <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      id="whatsapp-number-admin-input"
+                      type="tel"
+                      value={inputWhatsapp}
+                      onChange={(e) => {
+                        setInputWhatsapp(e.target.value);
+                        setWaSavedMsg('');
+                      }}
+                      placeholder="e.g. 01712345678 or 8801712345678"
+                      className="w-full bg-white border border-stone-200 rounded-xl px-3.5 py-2.5 text-sm font-mono text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 shadow-sm"
+                    />
+                    <p className="text-[10px] text-stone-500 italic">
+                      যেমন: <code className="bg-stone-200 px-1 py-0.5 rounded text-stone-800">8801712345678</code> অথবা <code className="bg-stone-200 px-1 py-0.5 rounded text-stone-800">01712345678</code>
+                    </p>
+                  </div>
+
+                  <button
+                    id="save-whatsapp-number-btn"
+                    onClick={() => {
+                      let clean = inputWhatsapp.trim().replace(/[^0-9]/g, '');
+                      if (!clean) {
+                        alert('অনুগ্রহ করে সঠিক মোবাইল নম্বর প্রদান করুন।');
+                        return;
+                      }
+                      if (!clean.startsWith('88') && clean.length === 11) {
+                        clean = '88' + clean;
+                      }
+                      if (onUpdateWhatsappNumber) {
+                        onUpdateWhatsappNumber(clean);
+                      }
+                      setInputWhatsapp(clean);
+                      setWaSavedMsg('হোয়াটসঅ্যাপ নাম্বার সফলভাবে সেভ করা হয়েছে!');
+                      setTimeout(() => setWaSavedMsg(''), 4000);
+                    }}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-display font-bold py-2.5 rounded-xl shadow transition-all flex items-center justify-center space-x-2 text-xs"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>নাম্বার পরিবর্তন সেভ করুন (Save Changes)</span>
+                  </button>
+                </div>
+
+                {/* Live Preview Card */}
+                <div className="bg-stone-900 text-stone-100 border border-stone-800 rounded-2xl p-5 space-y-4 shadow-xl flex flex-col justify-between">
+                  <div className="space-y-3">
+                    <span className="text-[10px] font-mono font-bold uppercase text-amber-400 tracking-wider block">
+                      লাইভ ডায়নামিক লিংক প্রিভিউ (Live Preview)
+                    </span>
+                    <h3 className="font-display font-bold text-base text-stone-100">
+                      গ্রাহকের কাছে দেখা যাবে:
+                    </h3>
+
+                    <div className="bg-stone-800/90 border border-stone-700/80 rounded-xl p-3.5 space-y-2">
+                      <span className="text-[10px] text-stone-400 font-mono block">Generated wa.me Redirect URL:</span>
+                      <div className="text-xs font-mono text-emerald-400 font-bold break-all bg-stone-950 p-2 rounded border border-stone-800">
+                        https://wa.me/{inputWhatsapp.trim().replace(/[^0-9]/g, '') || '8801712345678'}
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-stone-800/50 rounded-xl border border-stone-700/50 space-y-1 text-xs text-stone-300">
+                      <div className="flex items-center space-x-2 text-amber-300 font-bold">
+                        <Sparkles className="w-4 h-4" />
+                        <span>সিস্টেমে লাইভ যুক্ত হওয়া স্থানসমূহ:</span>
+                      </div>
+                      <ul className="list-disc list-inside text-[11px] space-y-1 pl-1 text-stone-400">
+                        <li>ওয়েবসাইটের মূল হেডার নেভবারের "কথা বলুন" বাটন</li>
+                        <li>ফেসবুক লাইভ চ্যাটের "WhatsApp" কন্টাক্ট শর্টকাট</li>
+                        <li>অর্ডার রসিদ ও কাস্টমার সাপোর্ট ডায়ালগ</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <a
+                      href={`https://wa.me/${inputWhatsapp.trim().replace(/[^0-9]/g, '') || '8801712345678'}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full bg-stone-800 hover:bg-stone-700 text-amber-400 border border-amber-500/30 text-xs font-bold py-2.5 rounded-xl transition-all flex items-center justify-center space-x-2"
+                    >
+                      <span>এখনই টেস্ট ক্লিক করুন (Test WhatsApp Link)</span>
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>

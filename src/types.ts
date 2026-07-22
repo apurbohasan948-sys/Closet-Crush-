@@ -31,7 +31,7 @@ export interface OrderItem {
   price: number;
 }
 
-export type OrderStatus = 'Pending' | 'Paid' | 'Processing' | 'Shipped' | 'Cancelled';
+export type OrderStatus = 'Pending' | 'Paid' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
 export type OrderSource = 'Website' | 'Telegram' | 'Facebook';
 
 export interface Order {
@@ -49,6 +49,9 @@ export interface Order {
     last4?: string;
     transactionId?: string;
   };
+  trackingNumber?: string;
+  trackingUrl?: string;
+  adminNote?: string;
 }
 
 export interface TelegramConfig {

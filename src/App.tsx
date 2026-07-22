@@ -12,6 +12,7 @@ import Dashboard from './components/Dashboard.js';
 import FacebookLiveChat from './components/FacebookLiveChat.js';
 import AdminLogin from './components/AdminLogin.js';
 import SimulatedInbox, { SimulatedEmail } from './components/SimulatedInbox.js';
+import OrderTrackingModal from './components/OrderTrackingModal.js';
 import { Product, Order, OrderStatus } from './types.js';
 import { DEFAULT_PRODUCTS, DEFAULT_ORDERS } from './data/initialProducts.js';
 import { Mail, ArrowRight, Bell, X } from 'lucide-react';
@@ -81,6 +82,24 @@ export default function App() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isTrackingOpen, setIsTrackingOpen] = useState(false);
+
+  // WhatsApp Admin Number State
+  const [whatsappNumber, setWhatsappNumber] = useState<string>(() => {
+    try {
+      return localStorage.getItem('bd_app_whatsapp') || '8801712345678';
+    } catch (e) {
+      return '8801712345678';
+    }
+  });
+
+  const handleUpdateWhatsappNumber = (newNumber: string) => {
+    const cleanNumber = newNumber.trim().replace(/[^0-9]/g, '');
+    setWhatsappNumber(cleanNumber);
+    try {
+      localStorage.setItem('bd_app_whatsapp', cleanNumber);
+    } catch (e) {}
+  };
 
   // Sync state to localStorage
   useEffect(() => {
@@ -611,18 +630,34 @@ export default function App() {
     }
   };
 
-  const handleUpdateOrderStatus = async (orderId: string, status: OrderStatus) => {
+  const handleUpdateOrderStatus = async (orderId: string, status: OrderStatus, trackingNumber?: string, trackingUrl?: string) => {
+    // Update local state immediately for instant response
+    setOrders(prev => prev.map(o => {
+      if (o.id === orderId) {
+        return {
+          ...o,
+          status,
+          ...(trackingNumber !== undefined ? { trackingNumber } : {}),
+          ...(trackingUrl !== undefined ? { trackingUrl } : {})
+        };
+      }
+      return o;
+    }));
+
     try {
       const response = await fetch(`/api/orders/${orderId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
+        body: JSON.stringify({ status, trackingNumber, trackingUrl })
       });
       if (response.ok) {
-        fetchOrders();
+        const updatedOrder = await response.json();
+        if (updatedOrder && updatedOrder.id) {
+          setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+        }
       }
     } catch (err) {
-      console.error('Failed to update order status:', err);
+      console.warn('Backend API not reachable for order status. Retained local state.', err);
     }
   };
 
@@ -679,6 +714,10 @@ export default function App() {
         cartCount={totalCartCount}
         toggleCart={() => setIsCartOpen(!isCartOpen)}
         isAdminGatewayUnlocked={isAdminGatewayUnlocked}
+        onOpenTracking={() => setIsTrackingOpen(true)}
+        onOpenInbox={() => setIsEmailClientOpen(true)}
+        unreadEmailCount={sentEmails.filter(e => !e.isRead).length}
+        whatsappNumber={whatsappNumber}
       />
 
       <main className="flex-1">
@@ -699,6 +738,8 @@ export default function App() {
             onAddProduct={handleAddProduct}
             onAddCategory={handleAddCategory}
             onUpdateOrderStatus={handleUpdateOrderStatus}
+            whatsappNumber={whatsappNumber}
+            onUpdateWhatsappNumber={handleUpdateWhatsappNumber}
             onLogout={() => {
               sessionStorage.removeItem('isAdminAuthenticated');
               sessionStorage.removeItem('isAdminGatewayUnlocked');
@@ -774,6 +815,7 @@ export default function App() {
           products={products}
           onTriggerCheckout={handleTriggerFacebookCheckout}
           onUpdateOrderStatus={handleUpdateOrderStatus}
+          whatsappNumber={whatsappNumber}
         />
       )}
 
@@ -836,6 +878,13 @@ export default function App() {
         onMarkAsRead={handleMarkAsRead}
         onClearAll={handleClearAllEmails}
         onDeleteEmail={handleDeleteEmail}
+      />
+
+      {/* User Order Tracking Modal Overlay */}
+      <OrderTrackingModal
+        isOpen={isTrackingOpen}
+        onClose={() => setIsTrackingOpen(false)}
+        orders={orders}
       />
     </div>
   );

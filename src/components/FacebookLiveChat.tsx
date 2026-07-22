@@ -31,9 +31,15 @@ interface FacebookLiveChatProps {
     onSuccessOverride: (paymentDetails: any) => Promise<void>
   ) => void;
   onUpdateOrderStatus: (orderId: string, status: OrderStatus) => void;
+  whatsappNumber?: string;
 }
 
-export default function FacebookLiveChat({ products, onTriggerCheckout, onUpdateOrderStatus }: FacebookLiveChatProps) {
+export default function FacebookLiveChat({ 
+  products, 
+  onTriggerCheckout, 
+  onUpdateOrderStatus,
+  whatsappNumber = '8801712345678'
+}: FacebookLiveChatProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isDirectAdminMode, setIsDirectAdminMode] = useState(false);
@@ -251,7 +257,7 @@ export default function FacebookLiveChat({ products, onTriggerCheckout, onUpdate
               <div className="flex items-center space-x-2">
                 <button 
                   onClick={handleToggleAdminMode}
-                  className={`px-2.5 py-0.5 rounded-full text-[9px] font-extrabold border transition-all ${
+                  className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold border transition-all ${
                     isDirectAdminMode 
                       ? 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200' 
                       : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
@@ -259,6 +265,16 @@ export default function FacebookLiveChat({ products, onTriggerCheckout, onUpdate
                 >
                   {isDirectAdminMode ? '🤖 Switch to AI' : '👤 Talk to Admin'}
                 </button>
+                <a
+                  href={`https://wa.me/${whatsappNumber.replace(/[^0-9]/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-600 text-white hover:bg-emerald-700 transition-all flex items-center space-x-0.5"
+                  title="Direct WhatsApp Chat"
+                >
+                  <MessageCircle className="w-2.5 h-2.5" />
+                  <span>WhatsApp</span>
+                </a>
                 <button 
                   onClick={handleClearChat}
                   className="text-stone-400 hover:text-rose-600 text-[9px] font-bold"
