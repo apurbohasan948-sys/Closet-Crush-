@@ -3,10 +3,53 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, SlidersHorizontal, ShoppingCart, Eye, Sparkles, X, ChevronLeft, ChevronRight, Star, MessageSquare, CheckCircle, User } from 'lucide-react';
 import { Product } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
+
+const heroSlides = [
+  {
+    id: 1,
+    title: 'Closet Crush',
+    subtitle: 'Worn with Passion',
+    description: 'Explore our curated catalog of premium vintage apparel, high-quality pre-loved pieces, and unique wardrobe staples selected just for you.',
+    image: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=1600&auto=format&fit=crop&q=80',
+    badge: 'Curated Fashion & Pre-loved Gems',
+    buttonText: 'Explore Storefront',
+    buttonLink: '#catalog'
+  },
+  {
+    id: 2,
+    title: 'New Season Arrivals',
+    subtitle: 'Handpicked Vintage & Modern Gems',
+    description: 'Exclusive collection of sustainable fashion, luxury leather, and handcrafted apparel delivered fast across Bangladesh.',
+    image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1600&auto=format&fit=crop&q=80',
+    badge: '🔥 Limited Edition Collection',
+    buttonText: 'Shop New Arrivals',
+    buttonLink: '#catalog'
+  },
+  {
+    id: 3,
+    title: 'Cash on Delivery Across BD',
+    subtitle: 'Fast 64-District Delivery',
+    description: 'Enjoy hassle-free shopping with COD payment, instant order tracking, and 24/7 direct WhatsApp customer assistance.',
+    image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&auto=format&fit=crop&q=80',
+    badge: '🚚 Cash On Delivery Available',
+    buttonText: 'Order Now',
+    buttonLink: '#catalog'
+  },
+  {
+    id: 4,
+    title: 'Handcrafted Heritage Deals',
+    subtitle: 'Up to 30% Off Selected Items',
+    description: 'Authentic ceramics, wool blankets, and handmade accessories crafted with utmost care and artisan excellence.',
+    image: 'https://images.unsplash.com/photo-1612196808214-b8e1d6145a8c?w=1600&auto=format&fit=crop&q=80',
+    badge: '✨ Special Artisan Discount',
+    buttonText: 'View Special Deals',
+    buttonLink: '#catalog'
+  }
+];
 
 interface StorefrontProps {
   products: Product[];
@@ -19,6 +62,24 @@ export default function Storefront({ products, categories = [], addToCart }: Sto
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  // Hero Slideshow state
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, []);
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + heroSlides.length) % heroSlides.length);
+  };
 
   // Review states
   const [reviewUserName, setReviewUserName] = useState('');
@@ -124,27 +185,87 @@ export default function Storefront({ products, categories = [], addToCart }: Sto
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Hero Banner Section */}
-      <div className="relative rounded-2xl bg-stone-900 overflow-hidden mb-12 shadow-xl border border-stone-800">
-        <div className="absolute inset-0 opacity-40 bg-cover bg-center" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=1600')` }} />
-        <div className="absolute inset-0 bg-gradient-to-r from-stone-950 via-stone-900/90 to-transparent" />
-        <div className="relative z-10 px-6 py-12 md:px-12 md:py-20 max-w-2xl text-stone-100">
-          <div className="inline-flex items-center space-x-2 bg-amber-500/15 border border-amber-500/30 rounded-full px-3 py-1 mb-4 text-amber-400 text-xs font-mono">
-            <Sparkles className="w-3.5 h-3.5 animate-spin-slow" />
-            <span>Curated Fashion & Pre-loved Gems</span>
-          </div>
-          <h1 className="font-display text-4xl sm:text-5xl font-extrabold tracking-tight mb-4 leading-tight text-stone-50">
-            Closet Crush <br />
-            <span className="bg-gradient-to-r from-amber-400 to-orange-300 bg-clip-text text-transparent">Worn with Passion</span>
-          </h1>
-          <p className="text-stone-300 text-base sm:text-lg mb-6 leading-relaxed font-sans">
-            Explore our curated catalog of premium vintage apparel, high-quality pre-loved pieces, and unique wardrobe staples selected just for you.
-          </p>
-          <div className="flex flex-wrap gap-4">
-            <a href="#catalog" className="bg-amber-500 hover:bg-amber-600 text-stone-950 font-semibold px-6 py-3 rounded-lg shadow-md transition-all text-sm font-display tracking-wide">
-              Explore Storefront
-            </a>
-          </div>
+      {/* Hero Banner Slideshow Section */}
+      <div className="relative rounded-2xl bg-stone-900 overflow-hidden mb-12 shadow-xl border border-stone-800 min-h-[380px] sm:min-h-[420px] flex items-center group">
+        {/* Animated Background Image Slide */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentSlide}
+            initial={{ opacity: 0, scale: 1.05 }}
+            animate={{ opacity: 0.45, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.7 }}
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url('${heroSlides[currentSlide].image}')` }}
+          />
+        </AnimatePresence>
+
+        {/* Overlay Dark Gradient */}
+        <div className="absolute inset-0 bg-gradient-to-r from-stone-950 via-stone-900/85 to-transparent z-10" />
+
+        {/* Slide Text & Button Content */}
+        <div className="relative z-20 px-6 py-10 md:px-12 md:py-16 max-w-2xl text-stone-100">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentSlide}
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -18 }}
+              transition={{ duration: 0.4 }}
+            >
+              <div className="inline-flex items-center space-x-2 bg-amber-500/15 border border-amber-500/30 rounded-full px-3 py-1 mb-4 text-amber-400 text-xs font-mono">
+                <Sparkles className="w-3.5 h-3.5 animate-spin-slow" />
+                <span>{heroSlides[currentSlide].badge}</span>
+              </div>
+              <h1 className="font-display text-3xl sm:text-5xl font-extrabold tracking-tight mb-3 leading-tight text-stone-50">
+                {heroSlides[currentSlide].title} <br />
+                <span className="bg-gradient-to-r from-amber-400 to-orange-300 bg-clip-text text-transparent">
+                  {heroSlides[currentSlide].subtitle}
+                </span>
+              </h1>
+              <p className="text-stone-300 text-sm sm:text-base mb-6 leading-relaxed font-sans max-w-xl">
+                {heroSlides[currentSlide].description}
+              </p>
+              <div className="flex flex-wrap gap-4">
+                <a
+                  href={heroSlides[currentSlide].buttonLink}
+                  className="bg-amber-500 hover:bg-amber-600 text-stone-950 font-semibold px-6 py-3 rounded-lg shadow-md transition-all text-sm font-display tracking-wide flex items-center space-x-2"
+                >
+                  <span>{heroSlides[currentSlide].buttonText}</span>
+                </a>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Navigation Left / Right Buttons */}
+        <button
+          onClick={prevSlide}
+          className="absolute left-3 z-30 p-2.5 rounded-full bg-stone-900/70 hover:bg-stone-900 text-stone-200 hover:text-amber-400 border border-stone-700/60 backdrop-blur-md transition-all shadow-md group-hover:opacity-100 sm:opacity-80"
+          aria-label="Previous Slide"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <button
+          onClick={nextSlide}
+          className="absolute right-3 z-30 p-2.5 rounded-full bg-stone-900/70 hover:bg-stone-900 text-stone-200 hover:text-amber-400 border border-stone-700/60 backdrop-blur-md transition-all shadow-md group-hover:opacity-100 sm:opacity-80"
+          aria-label="Next Slide"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
+
+        {/* Slide Dot Indicators */}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center space-x-2 bg-stone-950/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-stone-800/60">
+          {heroSlides.map((slide, index) => (
+            <button
+              key={slide.id}
+              onClick={() => setCurrentSlide(index)}
+              className={`h-2 rounded-full transition-all duration-300 ${
+                currentSlide === index ? 'w-6 bg-amber-400' : 'w-2 bg-stone-600 hover:bg-stone-400'
+              }`}
+              aria-label={`Go to slide ${index + 1}`}
+            />
+          ))}
         </div>
       </div>
 

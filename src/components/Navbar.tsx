@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { ShoppingBag, LayoutDashboard, Store, Flame, Truck, Mail, MessageCircle } from 'lucide-react';
+import { ShoppingBag, LayoutDashboard, Store, Flame, Truck, Mail, MessageCircle, User, LogOut } from 'lucide-react';
 
 interface NavbarProps {
   activeTab: 'store' | 'admin';
@@ -16,6 +16,9 @@ interface NavbarProps {
   onOpenInbox?: () => void;
   unreadEmailCount?: number;
   whatsappNumber?: string;
+  currentUser?: { name: string; emailOrPhone: string; authType: 'email' | 'phone'; isLoggedIn: boolean } | null;
+  onOpenUserAuth?: () => void;
+  onUserLogout?: () => void;
 }
 
 export default function Navbar({ 
@@ -27,7 +30,10 @@ export default function Navbar({
   onOpenTracking,
   onOpenInbox,
   unreadEmailCount = 0,
-  whatsappNumber = '8801712345678'
+  whatsappNumber = '8801712345678',
+  currentUser,
+  onOpenUserAuth,
+  onUserLogout
 }: NavbarProps) {
   return (
     <nav className="sticky top-0 z-40 bg-stone-900 text-stone-100 shadow-md border-b border-stone-800 font-sans">
@@ -130,6 +136,34 @@ export default function Navbar({
                     {unreadEmailCount}
                   </span>
                 )}
+              </button>
+            )}
+
+            {/* User Account Login Status Button */}
+            {currentUser?.isLoggedIn ? (
+              <div className="flex items-center space-x-1.5 bg-stone-800 border border-stone-700 rounded-full pl-2.5 pr-1.5 py-1 text-xs">
+                <User className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="font-bold text-stone-200 max-w-[90px] sm:max-w-[120px] truncate text-[11px]">
+                  {currentUser.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={onUserLogout}
+                  title="লগআউট করুন"
+                  className="p-1 text-stone-400 hover:text-rose-400 rounded-full transition-colors"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                id="nav-user-auth-btn"
+                onClick={onOpenUserAuth}
+                className="flex items-center space-x-1.5 bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700/80 px-2.5 py-1.5 rounded-full text-xs font-bold transition-all"
+                title="কাস্টমার একাউন্ট খুলুন বা লগইন করুন"
+              >
+                <User className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden sm:inline">সাইন ইন</span>
               </button>
             )}
 

@@ -8,7 +8,7 @@ import {
   Package, ShoppingCart, MessageSquare, Send, CheckCircle2, 
   RefreshCw, Plus, Minus, Cpu, Settings, BadgeAlert, Sparkles, 
   Facebook, Laptop, Smartphone, HelpCircle, FileJson, AlertCircle, Trash2,
-  Megaphone, Image, Layers, Check
+  Megaphone, Image, Layers, Check, Upload, Camera, X, FileImage, Link, Star
 } from 'lucide-react';
 import { Product, Order, OrderStatus, OrderSource, TelegramConfig } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -18,12 +18,18 @@ interface DashboardProps {
   orders: Order[];
   categories: string[];
   onUpdateProductStock: (id: string, newStock: number) => void;
+  onUpdateProductImage?: (id: string, newImage: string, newImages?: string[]) => void;
   onAddProduct: (productData: any) => void;
   onAddCategory: (categoryName: string) => void;
   onUpdateOrderStatus: (id: string, status: OrderStatus, trackingNumber?: string, trackingUrl?: string) => void;
   onLogout?: () => void;
   whatsappNumber?: string;
   onUpdateWhatsappNumber?: (newNumber: string) => void;
+  bkashNumber?: string;
+  nagadNumber?: string;
+  onUpdateMfsNumbers?: (bkash: string, nagad: string) => void;
+  adminPassword?: string;
+  onUpdateAdminPassword?: (newPassword: string) => void;
 }
 
 export default function Dashboard({
@@ -31,12 +37,18 @@ export default function Dashboard({
   orders,
   categories,
   onUpdateProductStock,
+  onUpdateProductImage,
   onAddProduct,
   onAddCategory,
   onUpdateOrderStatus,
   onLogout,
   whatsappNumber = '8801712345678',
-  onUpdateWhatsappNumber
+  onUpdateWhatsappNumber,
+  bkashNumber = '01712-345678',
+  nagadNumber = '01812-345678',
+  onUpdateMfsNumbers,
+  adminPassword = 'admin123',
+  onUpdateAdminPassword
 }: DashboardProps) {
   const [activeSubTab, setActiveSubTab] = useState<'inventory' | 'orders' | 'telegram' | 'facebook' | 'campaign' | 'settings'>('orders');
   
@@ -44,9 +56,26 @@ export default function Dashboard({
   const [inputWhatsapp, setInputWhatsapp] = useState(whatsappNumber);
   const [waSavedMsg, setWaSavedMsg] = useState('');
 
+  // MFS Numbers State
+  const [inputBkash, setInputBkash] = useState(bkashNumber);
+  const [inputNagad, setInputNagad] = useState(nagadNumber);
+  const [mfsSavedMsg, setMfsSavedMsg] = useState('');
+
+  // Password Change State
+  const [oldPasswordInput, setOldPasswordInput] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
+  const [passMsg, setPassMsg] = useState('');
+  const [passError, setPassError] = useState('');
+
   useEffect(() => {
     setInputWhatsapp(whatsappNumber);
   }, [whatsappNumber]);
+
+  useEffect(() => {
+    setInputBkash(bkashNumber);
+    setInputNagad(nagadNumber);
+  }, [bkashNumber, nagadNumber]);
   
   // Category state
   const [newCatName, setNewCatName] = useState('');
@@ -61,6 +90,80 @@ export default function Dashboard({
   const [newProdImagesText, setNewProdImagesText] = useState('');
   const [newProdStock, setNewProdStock] = useState('5');
   const [newProdCategory, setNewProdCategory] = useState('Ceramics');
+
+  // Direct File Image Upload state for Add Product
+  const [directUploadedImages, setDirectUploadedImages] = useState<string[]>([]);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  // State for updating image of existing product in inventory list
+  const editProdFileInputRef = useRef<HTMLInputElement>(null);
+  const [editingProdImgId, setEditingProdImgId] = useState<string | null>(null);
+  
+  // State for direct file upload in Campaign tab
+  const campaignFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleProcessImageFiles = (files: FileList | File[]) => {
+    const fileList = Array.from(files) as File[];
+    fileList.forEach((file: File) => {
+      if (!file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        if (result) {
+          setDirectUploadedImages(prev => [...prev, result]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      handleProcessImageFiles(e.target.files);
+      e.target.value = '';
+    }
+  };
+
+  const handleDropImages = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+    if (e.dataTransfer.files) {
+      handleProcessImageFiles(e.dataTransfer.files);
+    }
+  };
+
+  const handleRemoveDirectImage = (index: number) => {
+    setDirectUploadedImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSetMainCoverImage = (index: number) => {
+    setDirectUploadedImages(prev => {
+      const copy = [...prev];
+      const [selected] = copy.splice(index, 1);
+      return [selected, ...copy];
+    });
+  };
+
+  const handleEditExistingProdImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0] && editingProdImgId && onUpdateProductImage) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        if (result) {
+          const targetProd = products.find(p => p.id === editingProdImgId);
+          const updatedImages = targetProd ? [result, ...(targetProd.images || []).filter(img => img !== targetProd.image)] : [result];
+          onUpdateProductImage(editingProdImgId, result, updatedImages);
+          setEditingProdImgId(null);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = '';
+  };
 
   // Order filters
   const [orderFilter, setOrderFilter] = useState<'All' | OrderStatus>('All');
@@ -298,7 +401,12 @@ export default function Dashboard({
       .map(s => s.trim())
       .filter(s => s.length > 5);
 
-    const allImages = Array.from(new Set([newProdImage.trim(), ...extraUrls].filter(Boolean)));
+    const allImages = Array.from(new Set([
+      ...directUploadedImages,
+      newProdImage.trim(),
+      ...extraUrls
+    ].filter(Boolean)));
+
     const primaryImg = allImages[0] || 'https://images.unsplash.com/photo-1612196808214-b8e1d6145a8c?w=600&auto=format&fit=crop&q=80';
 
     onAddProduct({
@@ -317,6 +425,7 @@ export default function Dashboard({
     setNewProdDesc('');
     setNewProdImage('');
     setNewProdImagesText('');
+    setDirectUploadedImages([]);
     setNewProdStock('5');
     setShowAddForm(false);
   };
@@ -825,33 +934,182 @@ export default function Dashboard({
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-stone-600 mb-1">Main Image URL (মূল ছবি)</label>
-                        <input
-                          id="add-prod-image"
-                          type="text"
-                          placeholder="https://images.unsplash.com/..."
-                          value={newProdImage}
-                          onChange={(e) => setNewProdImage(e.target.value)}
-                          className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/40"
-                        />
+                        <label className="block text-xs font-semibold text-stone-600 mb-1">প্রডাক্ট স্ট্যাটাস</label>
+                        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg px-3 py-2 text-xs font-bold flex items-center space-x-1">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span>স্টোরে রেডি টু সেল</span>
+                        </div>
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-semibold text-stone-600 mb-1">
-                        Additional Images (অতিরিক্ত ছবি URL - প্রতি লাইনে একটি করে লিংক দিন)
-                      </label>
-                      <textarea
-                        id="add-prod-extra-images"
-                        rows={2}
-                        placeholder="https://images.unsplash.com/photo-1&#10;https://images.unsplash.com/photo-2"
-                        value={newProdImagesText}
-                        onChange={(e) => setNewProdImagesText(e.target.value)}
-                        className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/40 font-mono"
+                    {/* DIRECT FILE IMAGE UPLOADER SECTION */}
+                    <div className="space-y-3 bg-white border border-stone-200 p-4 rounded-xl shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold text-stone-800 flex items-center space-x-1.5">
+                          <Upload className="w-4 h-4 text-emerald-600" />
+                          <span>সরাসরি প্রডাক্টের ছবি আপলোড করুন (Direct Image File Upload)</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setShowUrlInput(!showUrlInput)}
+                          className="text-[11px] text-amber-700 hover:text-amber-800 font-semibold underline flex items-center space-x-1"
+                        >
+                          <Link className="w-3 h-3" />
+                          <span>{showUrlInput ? 'URL ইনপুট লুকান' : 'অথবা URL লিংক ব্যবহার করুন'}</span>
+                        </button>
+                      </div>
+
+                      {/* Hidden File Inputs */}
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileSelect}
+                        accept="image/*"
+                        multiple
+                        className="hidden"
                       />
-                      <p className="text-[10px] text-stone-400 mt-1">
-                        💡 একই প্রডাক্টের একাধিক ইমেজ আলাদাভাবে শো করতে প্রতিটি ইমেজ URL নতুন লাইনে লিখুন।
-                      </p>
+                      <input
+                        type="file"
+                        ref={cameraInputRef}
+                        onChange={handleFileSelect}
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                      />
+
+                      {/* Dropzone Area */}
+                      <div
+                        onDragOver={(e) => { e.preventDefault(); setIsDraggingOver(true); }}
+                        onDragLeave={(e) => { e.preventDefault(); setIsDraggingOver(false); }}
+                        onDrop={handleDropImages}
+                        className={`border-2 border-dashed rounded-xl p-5 text-center transition-all ${
+                          isDraggingOver 
+                            ? 'border-emerald-500 bg-emerald-50/50 scale-[0.99]' 
+                            : 'border-stone-300 hover:border-emerald-500 bg-stone-50 hover:bg-stone-50/80'
+                        }`}
+                      >
+                        <div className="flex flex-col items-center justify-center space-y-2">
+                          <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-inner">
+                            <Upload className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-stone-800">
+                              গ্যালারি বা ডিভাইস থেকে ছবি ড্র্যাগ করুন অথবা ক্লিক করে ফাইল সিলেক্ট করুন
+                            </p>
+                            <p className="text-[10px] text-stone-500 mt-0.5">
+                              PNG, JPG, JPEG, WEBP ইত্যাদি সরাসরি আপনার ফোন/কম্পিউটার থেকে আপলোড হবে
+                            </p>
+                          </div>
+
+                          <div className="flex items-center space-x-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition-all flex items-center space-x-1.5"
+                            >
+                              <FileImage className="w-3.5 h-3.5" />
+                              <span>📁 ফাইল থেকে সিলেক্ট করুন</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => cameraInputRef.current?.click()}
+                              className="px-3 py-1.5 bg-stone-800 hover:bg-stone-900 text-stone-100 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center space-x-1.5"
+                            >
+                              <Camera className="w-3.5 h-3.5" />
+                              <span>📷 ক্যামেরা তুলুন</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Direct Uploaded Images Thumbnails Gallery */}
+                      {directUploadedImages.length > 0 && (
+                        <div className="space-y-2 pt-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-stone-700">
+                              আপলোডকৃত সরাসরি ছবিসমূহ ({directUploadedImages.length}টি):
+                            </span>
+                            <span className="text-[10px] text-stone-500 italic">
+                              ★ প্রথম ছবিটি প্রডাক্টের মূল কভার হবে
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            {directUploadedImages.map((imgUrl, idx) => (
+                              <div 
+                                key={idx} 
+                                className={`relative group rounded-xl overflow-hidden border-2 shadow-sm transition-all ${
+                                  idx === 0 ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-stone-200'
+                                }`}
+                              >
+                                <img 
+                                  src={imgUrl} 
+                                  alt={`Uploaded product ${idx + 1}`} 
+                                  className="w-full h-24 object-cover" 
+                                />
+                                
+                                <div className="absolute top-1 left-1">
+                                  {idx === 0 ? (
+                                    <span className="bg-emerald-600 text-white font-bold text-[9px] px-1.5 py-0.5 rounded shadow">
+                                      ★ মূল কভার
+                                    </span>
+                                  ) : (
+                                    <span className="bg-stone-900/80 text-white font-mono text-[9px] px-1.5 py-0.5 rounded">
+                                      ছবি #{idx + 1}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="absolute inset-0 bg-stone-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2 p-1">
+                                  {idx !== 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSetMainCoverImage(idx)}
+                                      className="p-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[10px] font-bold flex items-center space-x-1 shadow"
+                                      title="কভার হিসেবে সেট করুন"
+                                    >
+                                      <Star className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveDirectImage(idx)}
+                                    className="p-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold flex items-center space-x-1 shadow"
+                                    title="ছবি রিমুভ করুন"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* URL Link Fallback section */}
+                      {showUrlInput && (
+                        <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl space-y-2 mt-2 animate-fadeIn">
+                          <label className="block text-[11px] font-bold text-stone-700">
+                            অনলাইন ওয়েবসাইটের ইমেজ URL লিংক (Optional Web URL):
+                          </label>
+                          <input
+                            id="add-prod-image"
+                            type="text"
+                            placeholder="https://images.unsplash.com/photo-..."
+                            value={newProdImage}
+                            onChange={(e) => setNewProdImage(e.target.value)}
+                            className="w-full bg-white border border-stone-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                          />
+                          <textarea
+                            id="add-prod-extra-images"
+                            rows={2}
+                            placeholder="অতিরিক্ত ছবির URL (প্রতি লাইনে একটি করে লিংক)"
+                            value={newProdImagesText}
+                            onChange={(e) => setNewProdImagesText(e.target.value)}
+                            className="w-full bg-white border border-stone-200 rounded-lg px-3 py-1.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                          />
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -886,18 +1144,49 @@ export default function Dashboard({
                 )}
               </AnimatePresence>
 
+              {/* Hidden file input for editing existing product images */}
+              <input
+                type="file"
+                ref={editProdFileInputRef}
+                onChange={handleEditExistingProdImage}
+                accept="image/*"
+                className="hidden"
+              />
+
               {/* Inventory Table List */}
               <div className="grid grid-cols-1 gap-4">
                 {products.map(p => (
                   <div key={p.id} className="flex items-center space-x-4 p-4 border border-stone-200 rounded-xl hover:border-amber-500/30 transition-all bg-stone-50/50">
-                    <img
-                      referrerPolicy="no-referrer"
-                      src={p.image}
-                      alt={p.name}
-                      className="w-16 h-16 object-cover rounded-lg border border-stone-200 shrink-0"
-                    />
+                    <div className="relative group shrink-0">
+                      <img
+                        referrerPolicy="no-referrer"
+                        src={p.image}
+                        alt={p.name}
+                        className="w-16 h-16 object-cover rounded-lg border border-stone-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingProdImgId(p.id);
+                          editProdFileInputRef.current?.click();
+                        }}
+                        className="absolute inset-0 bg-stone-900/75 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex flex-col items-center justify-center text-white text-[9px] font-bold p-1 text-center cursor-pointer shadow"
+                        title="ছবি পরিবর্তন করুন"
+                      >
+                        <Camera className="w-3.5 h-3.5 mb-0.5" />
+                        <span>ছবি বদলান</span>
+                      </button>
+                    </div>
+
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-display font-bold text-sm text-stone-900 truncate">{p.name}</h4>
+                      <div className="flex items-center space-x-2">
+                        <h4 className="font-display font-bold text-sm text-stone-900 truncate">{p.name}</h4>
+                        {p.images && p.images.length > 1 && (
+                          <span className="bg-stone-200 text-stone-700 font-mono text-[9px] px-1.5 py-0.2 rounded font-bold">
+                            {p.images.length}টি ছবি
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[10px] text-stone-400 font-mono tracking-wide uppercase mt-0.5">{p.category} | ৳{p.price.toLocaleString()}</p>
                       <p className="text-stone-500 text-xs line-clamp-1 mt-1 max-w-xl">{p.description}</p>
                     </div>
@@ -1477,11 +1766,41 @@ export default function Dashboard({
                       {/* Add Image Input */}
                       <div className="flex gap-2">
                         <input
+                          type="file"
+                          ref={campaignFileInputRef}
+                          onChange={(e) => {
+                            if (e.target.files) {
+                              (Array.from(e.target.files) as File[]).forEach((file: File) => {
+                                if (!file.type.startsWith('image/')) return;
+                                const reader = new FileReader();
+                                reader.onload = (evt) => {
+                                  const res = evt.target?.result as string;
+                                  if (res) setCampaignImages(prev => [...prev, res]);
+                                };
+                                reader.readAsDataURL(file);
+                              });
+                              e.target.value = '';
+                            }
+                          }}
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => campaignFileInputRef.current?.click()}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition-colors shrink-0 flex items-center space-x-1.5 shadow-sm"
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>📁 সরাসরি ছবি আপলোড</span>
+                        </button>
+
+                        <input
                           id="new-campaign-image-input"
                           type="text"
                           value={newCampaignImage}
                           onChange={(e) => setNewCampaignImage(e.target.value)}
-                          placeholder="Paste Unsplash or static image URL here..."
+                          placeholder="অথবা Unsplash/ওয়েব URL বসান..."
                           className="flex-1 bg-white border border-stone-250 text-stone-800 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
                         />
                         <button
@@ -1874,6 +2193,190 @@ export default function Dashboard({
                       <span>এখনই টেস্ট ক্লিক করুন (Test WhatsApp Link)</span>
                     </a>
                   </div>
+                </div>
+              </div>
+
+              {/* MFS PAYMENT NUMBERS SETTINGS (bKash & Nagad) */}
+              <div className="border-t border-stone-200 pt-6 space-y-4">
+                <div className="flex items-center space-x-2">
+                  <div className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 font-bold">
+                    <Smartphone className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-display font-extrabold text-lg text-stone-900">
+                      বিকাশ ও নগদ পেমেন্ট নম্বর সেটিংস (bKash & Nagad Merchant / Personal Numbers)
+                    </h3>
+                    <p className="text-stone-500 text-xs">
+                      চেকআউট পেজে কাস্টমারদের পেমেন্টের জন্য প্রদর্শিত বিকাশ ও নগদ মোবাইল নম্বর আপডেট করুন।
+                    </p>
+                  </div>
+                </div>
+
+                {mfsSavedMsg && (
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3.5 rounded-xl text-xs font-bold flex items-center space-x-2 animate-fadeIn">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>{mfsSavedMsg}</span>
+                  </div>
+                )}
+
+                <div className="bg-stone-50 border border-stone-200 rounded-2xl p-5 space-y-4 shadow-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* bKash Number Input */}
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-stone-800 flex items-center space-x-1">
+                        <span className="w-3 h-3 rounded-full bg-[#e2125d] inline-block"></span>
+                        <span>বিকাশ (bKash) মোবাইল নাম্বার</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={inputBkash}
+                        onChange={(e) => { setInputBkash(e.target.value); setMfsSavedMsg(''); }}
+                        placeholder="e.g. 01712-345678"
+                        className="w-full bg-white border border-stone-200 rounded-xl px-3.5 py-2.5 text-sm font-mono text-stone-900 focus:outline-none focus:ring-2 focus:ring-rose-500/40 focus:border-rose-500"
+                      />
+                    </div>
+
+                    {/* Nagad Number Input */}
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-stone-800 flex items-center space-x-1">
+                        <span className="w-3 h-3 rounded-full bg-[#f35f22] inline-block"></span>
+                        <span>নগদ (Nagad) মোবাইল নাম্বার</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={inputNagad}
+                        onChange={(e) => { setInputNagad(e.target.value); setMfsSavedMsg(''); }}
+                        placeholder="e.g. 01812-345678"
+                        className="w-full bg-white border border-stone-200 rounded-xl px-3.5 py-2.5 text-sm font-mono text-stone-900 focus:outline-none focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      if (!inputBkash.trim() || !inputNagad.trim()) {
+                        alert('অনুগ্রহ করে সঠিক বিকাশ ও নগদ নম্বর প্রদান করুন।');
+                        return;
+                      }
+                      if (onUpdateMfsNumbers) {
+                        onUpdateMfsNumbers(inputBkash.trim(), inputNagad.trim());
+                      }
+                      setMfsSavedMsg('বিকাশ ও নগদ নাম্বার সফলভাবে আপডেট হয়েছে!');
+                      setTimeout(() => setMfsSavedMsg(''), 4000);
+                    }}
+                    className="bg-stone-900 hover:bg-stone-800 text-amber-400 font-bold px-6 py-2.5 rounded-xl shadow transition-all flex items-center justify-center space-x-2 text-xs"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>পেমেন্ট নম্বরসমূহ সেভ করুন (Save Payment Numbers)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* ADMIN PASSWORD CHANGE SETTINGS */}
+              <div className="border-t border-stone-200 pt-6 space-y-4">
+                <div className="flex items-center space-x-2">
+                  <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 font-bold">
+                    <Cpu className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-display font-extrabold text-lg text-stone-900">
+                      অ্যাডমিন পাসওয়ার্ড সিকিউরিটি (Change Admin Password)
+                    </h3>
+                    <p className="text-stone-500 text-xs">
+                      এডমিন প্যানেলে লগইনের গোপন পাসওয়ার্ড পরিবর্তন করুন।
+                    </p>
+                  </div>
+                </div>
+
+                {passMsg && (
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3.5 rounded-xl text-xs font-bold flex items-center space-x-2 animate-fadeIn">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>{passMsg}</span>
+                  </div>
+                )}
+
+                {passError && (
+                  <div className="bg-rose-50 border border-rose-200 text-rose-800 p-3.5 rounded-xl text-xs font-bold flex items-center space-x-2 animate-fadeIn">
+                    <BadgeAlert className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>{passError}</span>
+                  </div>
+                )}
+
+                <div className="bg-stone-50 border border-stone-200 rounded-2xl p-5 space-y-4 shadow-sm max-w-xl">
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-bold text-stone-700 mb-1">
+                        বর্তমান পাসওয়ার্ড (Current Admin Password) <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="password"
+                        value={oldPasswordInput}
+                        onChange={(e) => { setOldPasswordInput(e.target.value); setPassError(''); setPassMsg(''); }}
+                        placeholder="••••••••"
+                        className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2 text-xs text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-stone-700 mb-1">
+                        নতুন পাসওয়ার্ড (New Password) <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="password"
+                        value={newPasswordInput}
+                        onChange={(e) => { setNewPasswordInput(e.target.value); setPassError(''); setPassMsg(''); }}
+                        placeholder="••••••••"
+                        className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2 text-xs text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-stone-700 mb-1">
+                        নতুন পাসওয়ার্ড কনফার্ম করুন (Confirm New Password) <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="password"
+                        value={confirmPasswordInput}
+                        onChange={(e) => { setConfirmPasswordInput(e.target.value); setPassError(''); setPassMsg(''); }}
+                        placeholder="••••••••"
+                        className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2 text-xs text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      if (!oldPasswordInput || !newPasswordInput || !confirmPasswordInput) {
+                        setPassError('সবগুলো ফিল্ড সঠিকভাবে পূরণ করুন।');
+                        return;
+                      }
+                      if (oldPasswordInput !== adminPassword) {
+                        setPassError('বর্তমান পাসওয়ার্ড সঠিক নয়!');
+                        return;
+                      }
+                      if (newPasswordInput.length < 4) {
+                        setPassError('নতুন পাসওয়ার্ড অন্তত ৪ অক্ষরের হতে হবে।');
+                        return;
+                      }
+                      if (newPasswordInput !== confirmPasswordInput) {
+                        setPassError('নতুন পাসওয়ার্ড দুটি মিলছে না!');
+                        return;
+                      }
+                      if (onUpdateAdminPassword) {
+                        onUpdateAdminPassword(newPasswordInput);
+                      }
+                      setOldPasswordInput('');
+                      setNewPasswordInput('');
+                      setConfirmPasswordInput('');
+                      setPassError('');
+                      setPassMsg('এডমিন পাসওয়ার্ড সফলভাবে আপডেট হয়েছে!');
+                      setTimeout(() => setPassMsg(''), 4000);
+                    }}
+                    className="bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold px-6 py-2.5 rounded-xl shadow transition-all flex items-center justify-center space-x-2 text-xs"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>পাসওয়ার্ড সেভ করুন (Save New Password)</span>
+                  </button>
                 </div>
               </div>
             </div>

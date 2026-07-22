@@ -13,6 +13,7 @@ import FacebookLiveChat from './components/FacebookLiveChat.js';
 import AdminLogin from './components/AdminLogin.js';
 import SimulatedInbox, { SimulatedEmail } from './components/SimulatedInbox.js';
 import OrderTrackingModal from './components/OrderTrackingModal.js';
+import UserAuthModal from './components/UserAuthModal.js';
 import { Product, Order, OrderStatus } from './types.js';
 import { DEFAULT_PRODUCTS, DEFAULT_ORDERS } from './data/initialProducts.js';
 import { Mail, ArrowRight, Bell, X } from 'lucide-react';
@@ -84,6 +85,78 @@ export default function App() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
 
+  // User Auth Modal State
+  const [isUserAuthOpen, setIsUserAuthOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{
+    name: string;
+    emailOrPhone: string;
+    authType: 'email' | 'phone';
+    isLoggedIn: boolean;
+  } | null>(() => {
+    try {
+      const saved = localStorage.getItem('bd_app_user_account');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return null;
+  });
+
+  const handleUserLoginSuccess = (userData: { name: string; emailOrPhone: string; authType: 'email' | 'phone' }) => {
+    const user = { ...userData, isLoggedIn: true };
+    setCurrentUser(user);
+    try {
+      localStorage.setItem('bd_app_user_account', JSON.stringify(user));
+    } catch (e) {}
+  };
+
+  const handleUserLogout = () => {
+    setCurrentUser(null);
+    try {
+      localStorage.removeItem('bd_app_user_account');
+    } catch (e) {}
+  };
+
+  // MFS Numbers State (bKash & Nagad)
+  const [bkashNumber, setBkashNumber] = useState<string>(() => {
+    try {
+      return localStorage.getItem('bd_app_bkash') || '01712-345678';
+    } catch (e) {
+      return '01712-345678';
+    }
+  });
+
+  const [nagadNumber, setNagadNumber] = useState<string>(() => {
+    try {
+      return localStorage.getItem('bd_app_nagad') || '01812-345678';
+    } catch (e) {
+      return '01812-345678';
+    }
+  });
+
+  const handleUpdateMfsNumbers = (bkash: string, nagad: string) => {
+    setBkashNumber(bkash);
+    setNagadNumber(nagad);
+    try {
+      localStorage.setItem('bd_app_bkash', bkash);
+      localStorage.setItem('bd_app_nagad', nagad);
+    } catch (e) {}
+  };
+
+  // Dynamic Admin Password State
+  const [adminPassword, setAdminPassword] = useState<string>(() => {
+    try {
+      return localStorage.getItem('bd_app_admin_password') || 'admin123';
+    } catch (e) {
+      return 'admin123';
+    }
+  });
+
+  const handleUpdateAdminPassword = (newPassword: string) => {
+    setAdminPassword(newPassword);
+    try {
+      localStorage.setItem('bd_app_admin_password', newPassword);
+    } catch (e) {}
+  };
+
   // WhatsApp Admin Number State
   const [whatsappNumber, setWhatsappNumber] = useState<string>(() => {
     try {
@@ -130,8 +203,8 @@ export default function App() {
     {
       id: 'em_welcome',
       subject: 'Welcome to Closet Crush! 🌸',
-      recipient: 'ramimhasan920@gmail.com',
-      sender: 'concierge@closetcrush.store',
+      recipient: 'customer@gmail.com',
+      sender: 'ramimhasan920@gmail.com',
       sentAt: new Date(Date.now() - 3600000 * 24).toLocaleString(), // 24 hours ago
       isRead: false,
       bodyHtml: `
@@ -141,13 +214,13 @@ export default function App() {
             <p style="color: #a8a29e; font-size: 11px; margin: 4px 0 0 0; font-family: monospace; text-transform: uppercase; letter-spacing: 0.1em;">Curated Fashion Marketplace</p>
           </div>
           <div style="padding: 32px 24px; line-height: 1.6;">
+            <div style="background-color: #f5f5f4; border: 1px solid #e7e5e4; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; font-size: 12px; color: #44403c;">
+              <div style="margin-bottom: 4px;"><strong>From (এডমিন প্রেরক):</strong> ramimhasan920@gmail.com</div>
+              <div><strong>To (গ্রাহক প্রাপক):</strong> customer@gmail.com</div>
+            </div>
             <h2 style="font-size: 18px; color: #1c1917; margin-top: 0; margin-bottom: 16px;">Welcome to Closet Crush!</h2>
             <p style="margin-bottom: 20px;">Thank you for joining Closet Crush. We are a premier curated platform dedicated to bringing you high-quality pre-loved apparel, vintage gems, and bespoke closet statement pieces.</p>
-            <div style="background-color: #f5f5f4; border: 1px solid #e7e5e4; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
-              <span style="font-size: 11px; font-family: monospace; text-transform: uppercase; color: #78716c; font-weight: bold; display: block; margin-bottom: 6px;">Your Verified Account Email</span>
-              <strong style="color: #1c1917; font-size: 14px;">ramimhasan920@gmail.com</strong>
-            </div>
-            <p style="margin-bottom: 0;">Explore our latest curated collections. When you place your first order, a simulated order confirmation receipt will be sent directly to this inbox in real-time!</p>
+            <p style="margin-bottom: 0;">Explore our latest curated collections. When you place your first order, a simulated order confirmation receipt will be sent directly to this inbox in real-time from our admin email (ramimhasan920@gmail.com)!</p>
           </div>
           <div style="background-color: #f5f5f4; padding: 20px 24px; text-align: center; border-top: 1px solid #e7e5e4; font-size: 11px; color: #78716c;">
             <p style="margin: 0 0 8px 0;">Closet Crush Marketplace &bull; Dhaka, Bangladesh</p>
@@ -314,6 +387,11 @@ export default function App() {
         </div>
 
         <div style="padding: 32px 24px;">
+          <div style="background-color: #f5f5f4; border: 1px solid #e7e5e4; border-radius: 8px; padding: 12px 16px; margin-bottom: 24px; font-size: 12px; color: #44403c; line-height: 1.5;">
+            <div style="margin-bottom: 4px;"><strong>From (এডমিন প্রেরক):</strong> ramimhasan920@gmail.com</div>
+            <div><strong>To (গ্রাহক প্রাপক):</strong> ${order.customerEmail || emailAddress || 'customer@gmail.com'}</div>
+          </div>
+
           <div style="text-align: center; margin-bottom: 28px;">
             <div style="display: inline-block; background-color: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; border-radius: 20px; padding: 6px 14px; font-size: 11px; font-weight: bold; font-family: monospace; text-transform: uppercase;">
               Order Confirmed
@@ -534,13 +612,13 @@ export default function App() {
     setCartItems([]);
     setIsCartOpen(false);
 
-    // 1. Deliver customer email
+    // 1. Deliver customer email (From: ramimhasan920@gmail.com, To: paymentData.customerEmail)
     const customerEmailHtml = generateReceiptEmailHtml(createdOrder, paymentData.customerEmail);
     const customerEmailObj: SimulatedEmail = {
       id: 'em_cust_' + Math.random().toString(36).substr(2, 9),
       subject: `Order Confirmed: #${createdOrder.id} - Closet Crush 📦`,
       recipient: paymentData.customerEmail,
-      sender: 'concierge@closetcrush.store',
+      sender: 'ramimhasan920@gmail.com',
       bodyHtml: customerEmailHtml,
       sentAt: new Date().toLocaleString(),
       isRead: false
@@ -552,7 +630,7 @@ export default function App() {
       id: 'em_admin_' + Math.random().toString(36).substr(2, 9),
       subject: `🚨 ADMIN NEW ORDER: #${createdOrder.id} from ${paymentData.customerName} (৳${createdOrder.total.toLocaleString()})`,
       recipient: 'ramimhasan920@gmail.com',
-      sender: 'orders@closetcrush.store',
+      sender: 'ramimhasan920@gmail.com',
       bodyHtml: adminEmailHtml,
       sentAt: new Date().toLocaleString(),
       isRead: false
@@ -580,6 +658,7 @@ export default function App() {
   // 5. Admin handlers
   const handleUpdateProductStock = async (productId: string, newStock: number) => {
     try {
+      setProducts(prev => prev.map(p => p.id === productId ? { ...p, stock: newStock } : p));
       const response = await fetch(`/api/products/${productId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -590,6 +669,20 @@ export default function App() {
       }
     } catch (err) {
       console.error('Failed to update product stock:', err);
+    }
+  };
+
+  const handleUpdateProductImage = async (productId: string, newImage: string, newImages?: string[]) => {
+    const imagesList = newImages && newImages.length > 0 ? newImages : [newImage];
+    setProducts(prev => prev.map(p => p.id === productId ? { ...p, image: newImage, images: imagesList } : p));
+    try {
+      await fetch(`/api/products/${productId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: newImage, images: imagesList })
+      });
+    } catch (err) {
+      console.warn('Updated product image in local memory state.');
     }
   };
 
@@ -718,6 +811,9 @@ export default function App() {
         onOpenInbox={() => setIsEmailClientOpen(true)}
         unreadEmailCount={sentEmails.filter(e => !e.isRead).length}
         whatsappNumber={whatsappNumber}
+        currentUser={currentUser}
+        onOpenUserAuth={() => setIsUserAuthOpen(true)}
+        onUserLogout={handleUserLogout}
       />
 
       <main className="flex-1">
@@ -728,18 +824,27 @@ export default function App() {
             addToCart={handleAddToCart}
           />
         ) : !isAdminAuthenticated ? (
-          <AdminLogin onLoginSuccess={() => setIsAdminAuthenticated(true)} />
+          <AdminLogin
+            onLoginSuccess={() => setIsAdminAuthenticated(true)}
+            adminPassword={adminPassword}
+          />
         ) : (
           <Dashboard
             products={products}
             orders={orders}
             categories={categories}
             onUpdateProductStock={handleUpdateProductStock}
+            onUpdateProductImage={handleUpdateProductImage}
             onAddProduct={handleAddProduct}
             onAddCategory={handleAddCategory}
             onUpdateOrderStatus={handleUpdateOrderStatus}
             whatsappNumber={whatsappNumber}
             onUpdateWhatsappNumber={handleUpdateWhatsappNumber}
+            bkashNumber={bkashNumber}
+            nagadNumber={nagadNumber}
+            onUpdateMfsNumbers={handleUpdateMfsNumbers}
+            adminPassword={adminPassword}
+            onUpdateAdminPassword={handleUpdateAdminPassword}
             onLogout={() => {
               sessionStorage.removeItem('isAdminAuthenticated');
               sessionStorage.removeItem('isAdminGatewayUnlocked');
@@ -798,6 +903,10 @@ export default function App() {
         cartItems={checkoutPrefills ? checkoutPrefills.cartItems : cartItems}
         initialCustomerName={checkoutPrefills ? checkoutPrefills.customerName : ''}
         initialShippingAddress={checkoutPrefills ? checkoutPrefills.shippingAddress : ''}
+        bkashNumber={bkashNumber}
+        nagadNumber={nagadNumber}
+        currentUser={currentUser}
+        onOpenUserAuth={() => setIsUserAuthOpen(true)}
         onSuccess={async (paymentData) => {
           if (checkoutPrefills?.onSuccessOverride) {
             await checkoutPrefills.onSuccessOverride(paymentData.paymentDetails);
@@ -807,6 +916,13 @@ export default function App() {
           setIsCheckoutOpen(false);
           setCheckoutPrefills(null);
         }}
+      />
+
+      {/* User Account Login & Registration Modal */}
+      <UserAuthModal
+        isOpen={isUserAuthOpen}
+        onClose={() => setIsUserAuthOpen(false)}
+        onLoginSuccess={handleUserLoginSuccess}
       />
 
       {/* Facebook Messenger Live Chat simulation overlay (for customers on the storefront) */}

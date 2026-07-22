@@ -9,9 +9,10 @@ import { motion } from 'motion/react';
 
 interface AdminLoginProps {
   onLoginSuccess: () => void;
+  adminPassword?: string;
 }
 
-export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
+export default function AdminLogin({ onLoginSuccess, adminPassword = 'admin123' }: AdminLoginProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -23,10 +24,9 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
     setError('');
     setIsLoading(true);
 
-    // Simulate an international standard backend authentication latency (500ms)
+    // Simulate authentication latency (500ms)
     setTimeout(() => {
-      // Standard hardcoded credentials for demonstration & sandbox
-      if (username.trim() === 'admin' && password === 'admin123') {
+      if (username.trim() === 'admin' && password === adminPassword) {
         sessionStorage.setItem('isAdminAuthenticated', 'true');
         onLoginSuccess();
       } else {
@@ -115,7 +115,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
           <div className="font-bold text-amber-900 mb-0.5">🔑 স্যান্ডবক্স ডেমো ক্রেডেনশিয়াল (Default Credentials):</div>
           <div className="flex justify-between font-mono text-[10px] text-stone-600">
             <span>Username: <strong className="text-stone-800 select-all">admin</strong></span>
-            <span>Password: <strong className="text-stone-800 select-all">admin123</strong></span>
+            <span>Password: <strong className="text-stone-800 select-all">{adminPassword}</strong></span>
           </div>
         </div>
 

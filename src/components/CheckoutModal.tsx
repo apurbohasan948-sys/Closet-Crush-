@@ -17,6 +17,10 @@ interface CheckoutModalProps {
   cartItems: any[];
   initialCustomerName?: string;
   initialShippingAddress?: string;
+  bkashNumber?: string;
+  nagadNumber?: string;
+  currentUser?: { name: string; emailOrPhone: string; authType: 'email' | 'phone'; isLoggedIn: boolean } | null;
+  onOpenUserAuth?: () => void;
   onSuccess: (paymentData: {
     customerName: string;
     shippingAddress: string;
@@ -35,14 +39,18 @@ export default function CheckoutModal({
   cartItems, 
   initialCustomerName = '', 
   initialShippingAddress = '', 
+  bkashNumber = '01712-345678',
+  nagadNumber = '01812-345678',
+  currentUser = null,
+  onOpenUserAuth,
   onSuccess 
 }: CheckoutModalProps) {
   if (!isOpen) return null;
 
   // Global Checkout State
-  const [customerName, setCustomerName] = useState(initialCustomerName);
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('ramimhasan920@gmail.com');
+  const [customerName, setCustomerName] = useState(currentUser?.name || initialCustomerName);
+  const [customerPhone, setCustomerPhone] = useState(currentUser?.authType === 'phone' ? currentUser.emailOrPhone : '');
+  const [customerEmail, setCustomerEmail] = useState(currentUser?.authType === 'email' ? currentUser.emailOrPhone : 'customer@gmail.com');
   const [selectedDistrict, setSelectedDistrict] = useState('Dhaka');
   const [selectedUpazila, setSelectedUpazila] = useState('Dhanmondi');
   const [detailedAddress, setDetailedAddress] = useState(initialShippingAddress || '');
@@ -73,29 +81,35 @@ export default function CheckoutModal({
     }
   };
   
-  // Sync pre-fills on open
+  // Sync pre-fills on open or currentUser update
   React.useEffect(() => {
     if (isOpen) {
-      setCustomerName(initialCustomerName);
+      if (currentUser?.isLoggedIn) {
+        setCustomerName(currentUser.name);
+        if (currentUser.authType === 'email') setCustomerEmail(currentUser.emailOrPhone);
+        if (currentUser.authType === 'phone') setCustomerPhone(currentUser.emailOrPhone);
+      } else {
+        setCustomerName(initialCustomerName);
+      }
       if (initialShippingAddress) setDetailedAddress(initialShippingAddress);
     }
-  }, [isOpen, initialCustomerName, initialShippingAddress]);
+  }, [isOpen, initialCustomerName, initialShippingAddress, currentUser]);
 
   const total = cartItems.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
 
   // Operator Official Accounts
   const mfsAccounts = {
     bKash: {
-      name: 'bKash (বিকাশ পার্সোনাল)',
-      number: '01712-345678',
+      name: 'bKash (বিকাশ পার্সোনাল/মার্চেন্ট)',
+      number: bkashNumber || '01712-345678',
       color: 'bg-[#e2125d]',
       textColor: 'text-[#e2125d]',
       borderColor: 'border-[#e2125d]',
       bgLight: 'bg-rose-50 border-rose-200'
     },
     Nagad: {
-      name: 'Nagad (নগদ পার্সোনাল)',
-      number: '01812-345678',
+      name: 'Nagad (নগদ পার্সোনাল/মার্চেন্ট)',
+      number: nagadNumber || '01812-345678',
       color: 'bg-[#f35f22]',
       textColor: 'text-[#f35f22]',
       borderColor: 'border-[#f35f22]',
@@ -111,6 +125,11 @@ export default function CheckoutModal({
 
   // Helper to validate common customer fields
   const validateCustomerFields = () => {
+    if (!currentUser?.isLoggedIn) {
+      if (onOpenUserAuth) onOpenUserAuth();
+      setError('অর্ডার সম্পন্ন করতে প্রথমে জিমেইল/ইমেইল অথবা ফোন দিয়ে একাউন্ট খুলুন বা লগইন করুন।');
+      return false;
+    }
     if (!customerName.trim()) {
       setError('অনুগ্রহ করে আপনার নাম প্রদান করুন (Please enter your name).');
       return false;
@@ -276,6 +295,44 @@ export default function CheckoutModal({
                   </div>
                 )}
 
+                {/* User Account Requirement Box */}
+                {!currentUser?.isLoggedIn ? (
+                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center space-x-1.5 font-bold text-amber-900 text-xs">
+                        <Smartphone className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span>অর্ডারের জন্য একাউন্ট খুলুন (Account Required)</span>
+                      </div>
+                      <p className="text-[11px] text-stone-600 leading-snug">
+                        অর্ডার সম্পন্ন করতে প্রথমে জিমেইল/ইমেইল অথবা ফোন নাম্বার দিয়ে সহজে একাউন্ট খুলুন।
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={onOpenUserAuth}
+                      className="bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold px-3.5 py-1.5 rounded-lg text-xs transition-all shadow-sm shrink-0 w-full sm:w-auto text-center"
+                    >
+                      একাউন্ট খুলুন / লগইন
+                    </button>
+                  </div>
+                ) : (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center justify-between">
+                    <div className="flex items-center space-x-2 text-xs">
+                      <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <div>
+                        <span className="font-bold text-emerald-900 block">{currentUser.name}</span>
+                        <span className="text-[10px] text-emerald-700 font-mono">
+                          {currentUser.authType === 'email' ? 'Gmail: ' : 'Phone: '}
+                          {currentUser.emailOrPhone}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="bg-emerald-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
+                      ভেরিফাইড কাস্টমার
+                    </span>
+                  </div>
+                )}
+
                 {/* Customer Information Form */}
                 <div className="bg-stone-50 border border-stone-200 rounded-xl p-3.5 space-y-3">
                   <span className="text-[11px] font-bold text-stone-700 uppercase tracking-wider font-mono flex items-center space-x-1.5">
@@ -378,7 +435,7 @@ export default function CheckoutModal({
                         id="checkout-email-input"
                         type="email"
                         required
-                        placeholder="ramimhasan920@gmail.com"
+                        placeholder="customer@gmail.com"
                         value={customerEmail}
                         onChange={(e) => setCustomerEmail(e.target.value)}
                         className="w-full bg-white border border-stone-200 rounded-lg px-2.5 py-1.5 text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
